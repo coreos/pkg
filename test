@@ -15,7 +15,7 @@ COVER=${COVER:-"-cover"}
 source ./build
 
 TESTABLE="time"
-FORMATTABLE="$TESTABLE"
+FORMATTABLE="$TESTABLE log"
 
 # user has not provided PKG override
 if [ -z "$PKG" ]; then
