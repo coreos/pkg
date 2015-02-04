@@ -14,7 +14,7 @@ COVER=${COVER:-"-cover"}
 
 source ./build
 
-TESTABLE="flag time"
+TESTABLE="flag timeutil"
 FORMATTABLE="$TESTABLE log"
 
 # user has not provided PKG override
