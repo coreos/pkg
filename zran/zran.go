@@ -8,6 +8,7 @@
 package zran
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -16,22 +17,44 @@ import (
 )
 
 const (
-	span    = 1 << 20 // 1M  -- desired distance between access points in uncompressed output
-	winSize = 1 << 15 // 32K -- sliding window size, max history required to build a dictionary for flate
-	chunk   = 1 << 14 // 16k -- file input buffer size
+	span  = 1 << 20 // 1M  -- desired distance between access points in uncompressed output
+	chunk = 1 << 14 // 16k -- file input buffer size
 )
 
+// Point mimics flate.Decompressor for restoration of decoder state needed for
+// random access. This probably saves more state then strictly necessary.
 type point struct {
-	offsetOut int64 // offset into uncompressed data
-	offsetIn  int64 // offset into input of first full byte
-	// bits      int            // number of bits (1-7) from byte at -1, or 0
-	// TODO: Do we need to save nb and b?
-	window *[winSize]byte // preceding 32K of uncompressed data
+	roffset int64 // Export offset into input
+	woffset int64 // Export offset into output
+
+	// Input bits, in top of b.
+	b  uint32
+	nb uint
+	// Huffman decoders for literal/length, distance.
+	h1, h2 flate.HuffmanDecoder
+
+	// Length arrays used to define Huffman codes.
+	bits     *[flate.MaxLit + flate.MaxDist]int
+	codebits *[flate.NumCodes]int
+
+	// Output history, buffer.
+	hist  *[flate.MaxHist]byte // Export history
+	hp    int                  // current output position in buffer
+	hw    int                  // have written hist[0:hw] already
+	hfull bool                 // buffer has filled at least once
+
+	// Temporary buffer (avoids repeated allocation).
+	buf [4]byte
+
+	final    bool
+	copyLen  int
+	copyDist int
 }
 
 // Index stores access points into compressed file. Span will determine the
 // balance between the speed of random access against the memory requirements
-// of the index.
+// of the index. This may err on the side of replicating more of decompressor
+// state then necessary.
 type Index []point
 
 func (i *Index) addPoint(rr *gzip.Reader, n int64) {
@@ -41,13 +64,98 @@ func (i *Index) addPoint(rr *gzip.Reader, n int64) {
 	if r.Woffset != n {
 		panic("Inconsistant Decompressor state, Woffset doesn't represent accumulated readSpan() calls")
 	}
-	pt := point{
-		offsetOut: r.Woffset,
-		offsetIn:  r.Roffset,
-		window:    new([winSize]byte),
+	// Sanity check: Decompressor has nothing in toRead
+	if len(r.ToRead) != 0 {
+		panic("toRead not zero")
 	}
-	copy(pt.window[:], r.Hist[:])
+
+	// save decompressor state
+	pt := point{
+		woffset: r.Woffset,
+		roffset: r.Roffset,
+		b:       r.B,
+		nb:      r.Nb,
+		h1: flate.HuffmanDecoder{
+			Min:      r.H1.Min,
+			Chunks:   r.H1.Chunks,
+			LinkMask: r.H1.LinkMask,
+			Links:    make([][]uint32, len(r.H1.Links)),
+		},
+		h2: flate.HuffmanDecoder{
+			Min:      r.H2.Min,
+			Chunks:   r.H2.Chunks,
+			LinkMask: r.H2.LinkMask,
+			Links:    make([][]uint32, len(r.H2.Links)),
+		},
+		bits:     new([flate.MaxLit + flate.MaxDist]int),
+		codebits: new([flate.NumCodes]int),
+		hist:     new([flate.MaxHist]byte),
+		hp:       r.Hp,
+		hw:       r.Hw,
+		hfull:    r.Hfull,
+		buf:      r.Buf,
+		final:    r.Final,
+		copyLen:  r.CopyLen,
+		copyDist: r.CopyDist,
+	}
+	// deep copy h1.Links
+	for i := range r.H2.Links {
+		pt.h1.Links[i] = append(pt.h1.Links[i], r.H1.Links[i]...)
+	}
+	// deep copy h2.Links
+	for i := range r.H2.Links {
+		pt.h2.Links[i] = append(pt.h2.Links[i], r.H2.Links[i]...)
+	}
+	// deep copy hist buf
+	copy(pt.hist[:], r.Hist[:])
+
+	// add point to index
 	*i = append(*i, pt)
+}
+
+// Restores decompressor to equivalent state as when index access point was taken
+func inflateResume(r io.Reader, pt point) io.ReadCloser {
+	f := flate.Decompressor{
+		Woffset: pt.woffset,
+		Roffset: pt.roffset,
+		B:       pt.b,
+		Nb:      pt.nb,
+		H1: flate.HuffmanDecoder{
+			Min:      pt.h1.Min,
+			Chunks:   pt.h1.Chunks,
+			LinkMask: pt.h1.LinkMask,
+			Links:    make([][]uint32, len(pt.h1.Links)),
+		},
+		H2: flate.HuffmanDecoder{
+			Min:      pt.h2.Min,
+			Chunks:   pt.h2.Chunks,
+			LinkMask: pt.h2.LinkMask,
+			Links:    make([][]uint32, len(pt.h2.Links)),
+		},
+		Bits:     new([flate.MaxLit + flate.MaxDist]int),
+		Codebits: new([flate.NumCodes]int),
+		Hist:     new([flate.MaxHist]byte),
+		Hp:       pt.hp,
+		Hw:       pt.hw,
+		Hfull:    pt.hfull,
+		Buf:      pt.buf,
+		Final:    pt.final,
+		CopyLen:  pt.copyLen,
+		CopyDist: pt.copyDist,
+	} // deep copy h1.Links
+	for i := range pt.h2.Links {
+		f.H1.Links[i] = append(f.H1.Links[i], pt.h1.Links[i]...)
+	}
+	// deep copy h2.Links
+	for i := range pt.h2.Links {
+		f.H2.Links[i] = append(f.H2.Links[i], pt.h2.Links[i]...)
+	}
+	// deep copy hist buf
+	copy(f.Hist[:], pt.hist[:])
+
+	f.R = flate.MakeReader(r)
+	f.Step = (*flate.Decompressor).NextBlock
+	return &f
 }
 
 // ReadSpan reads blocks until span size or greater bytes have been read.
@@ -126,27 +234,28 @@ func Extract(filename string, idx Index, offset int64, length int64) ([]byte, er
 	// find access point
 	var pt point
 	for i := range idx {
-		if idx[i].offsetOut <= offset {
-			break
+		if idx[i].woffset <= offset {
 			pt = idx[i]
+			break
 		}
 	}
 
-	//TODO: Subtract byte from seek if we have bits in previous byte as part of
-	//block.  This is to replicate inflateprime from zlib. I think this may
-	//be easiest to achieve by replicating and restoring more aspects of the
-	//decompressor's state at index creation points.
-	_, err = in.Seek(pt.offsetIn, 0)
+	// set file to start of block
+	_, err = in.Seek(pt.roffset, 0)
 	if err != nil {
 		return []byte{}, err
 	}
 
-	rr := flate.NewReaderDict(in, pt.window[:])
+	// restore decompressor state
+	rr := inflateResume(in, pt)
 
-	// inflate until out of input or offset - offsetOut + len(b) bytes have been read or end of file
-	b := make([]byte, length+offset-pt.offsetOut)
+	// inflate until out of input, offset - offsetOut + len(b) bytes have been
+	// read, or end of file
+	b := make([]byte, length+offset-pt.woffset)
 	for {
+
 		n, err := rr.Read(b)
+		fmt.Printf("Read %v bytes", n)
 		if err != nil || n == 0 {
 			return b, err
 		}
