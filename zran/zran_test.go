@@ -1,7 +1,6 @@
 package zran
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"testing"
@@ -10,7 +9,7 @@ import (
 const (
 	testData = "./testdata/tomsawyer.gz"
 	testAns  = "./testdata/ans"
-	offset   = 1<<20 + 4 //change to 1<<20 to see error when reading from 2nd access point
+	offset   = 1<<20 + 4
 	length   = 17
 )
 
@@ -22,17 +21,22 @@ func TestBasic(t *testing.T) {
 		t.Errorf("Failed to build index: %v", err)
 	}
 
-	// get desired answer to check with
+	// get desired answer to check against
 	f, err := os.Open(testAns)
+	if err != nil {
+		t.Errorf("Error opening answer file: %v", err)
+	}
 	f.Seek(offset, 0)
 	ans := make([]byte, length)
 	f.Read(ans)
 	f.Close()
 
 	// extract and compare to desired answer
-	b, err := Extract(testData, idx, offset, length, 0)
+	b, err := Extract(testData, idx, offset, length)
+	if err != nil && err != io.EOF {
+		t.Errorf("Extract error: %s\n", err)
+	}
 	if err == nil || err == io.EOF {
-		//s += fmt.Sprintln("Success at", i, "\n", string(b))
 		var fail bool
 		if len(b) != len(ans) {
 			fail = true
@@ -45,10 +49,8 @@ func TestBasic(t *testing.T) {
 			}
 		}
 		if !fail {
-			fmt.Printf("Success, read bytes: %s\n", b)
 			return
 		}
-
+		t.Errorf("Extract returned: %s, Expected: %s\n", b, ans)
 	}
-	t.Errorf("Got: %s, Expected: %s", b, ans)
 }

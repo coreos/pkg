@@ -1,15 +1,14 @@
 // Package zran is a go implementation of zran by Mark Adler
 // (https://github.com/madler/zlib/blob/master/examples/zran.c). Zran takes a
-// compressed gzip file. This stream is decoded in its entirety, and an index is
-// built with access points about every span bytes in the uncompressed output.
-// The compressed file is left open, and can be read randomly, having to
-// decompress on the average SPAN/2 uncompressed bytes before getting to the
+// compressed gzip file. This stream is decoded in its entirety, and an index
+// is built with access points about every span bytes in the uncompressed
+// output. The compressed file is left open, and can be read randomly, having
+// to decompress on the average SPAN/2 uncompressed bytes before getting to the
 // desired block of data.
 package zran
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"os"
 
@@ -18,14 +17,14 @@ import (
 )
 
 const (
-	span = 1 << 20 // 1M  -- desired distance between access points in uncompressed output
+	span = 1 << 20 // 1M -- min distance between access points in uncompressed output
 )
 
 // Point mimics flate.Decompressor for restoration of decoder state needed for
 // random access. This probably saves more state then strictly necessary.
 type point struct {
-	roffset int64 // Export offset into input
-	woffset int64 // Export offset into output
+	roffset int64
+	woffset int64
 
 	// Input bits, in top of b.
 	b  uint32
@@ -38,10 +37,10 @@ type point struct {
 	codebits *[flate.NumCodes]int
 
 	// Output history, buffer.
-	hist  *[flate.MaxHist]byte // Export history
-	hp    int                  // current output position in buffer
-	hw    int                  // have written hist[0:hw] already
-	hfull bool                 // buffer has filled at least once
+	hist  *[flate.MaxHist]byte
+	hp    int  // current output position in buffer
+	hw    int  // have written hist[0:hw] already
+	hfull bool // buffer has filled at least once
 
 	// Temporary buffer (avoids repeated allocation).
 	buf [4]byte
@@ -52,48 +51,17 @@ type point struct {
 	hl, hd   *flate.HuffmanDecoder
 	copyLen  int
 	copyDist int
-
-	peek []byte
 }
 
 // Index stores access points into compressed file. Span will determine the
 // balance between the speed of random access against the memory requirements
-// of the index. This may err on the side of replicating more of decompressor
-// state then necessary.
+// of the index.
 type Index []*point
 
 func (idx *Index) addPoint(gr *gzip.Reader, n int64) {
 	// convert from io.ReadCloser to flate.Decompresser
 	r := gr.Decompressor.(*flate.Decompressor)
 
-	// print decompressor to check that its fully restored when resuming from same block
-	if n == 1<<20 {
-		f, _ := os.Create("beforeCompressor")
-		fmt.Fprintln(f, r.String())
-		f.Close()
-		/*
-			if r.Hl == &r.H1 {
-				fmt.Println("Before, Hl == &H1")
-			}
-			if r.Hd == &r.H2 {
-				fmt.Println("Before, Hd == &H2")
-			}
-		*/
-	}
-	// Sanity check: does Decompresser Woffset equal accumulated n from readSpan()?
-	if r.Woffset != n {
-		panic("Inconsistant Decompressor state, Woffset doesn't represent accumulated readSpan() calls")
-	}
-	// Sanity check: Decompressor has nothing in toRead
-	if len(r.ToRead) != 0 {
-		panic("toRead not zero")
-	}
-
-	// Sanity check peek ahead and make sure when doing extract we are at the same point in the reader
-	p, err := gr.R.(*bufio.Reader).Peek(40)
-	if err != nil {
-		panic("peek didn't work")
-	}
 	// save decompressor state
 	pt := &point{
 		woffset: r.Woffset,
@@ -124,10 +92,9 @@ func (idx *Index) addPoint(gr *gzip.Reader, n int64) {
 		err:      r.Err,
 		copyLen:  r.CopyLen,
 		copyDist: r.CopyDist,
-		peek:     make([]byte, len(p)),
 	}
-	copy(pt.peek, p)
 
+	// save hl and hd
 	if r.Hl != nil {
 		if r.Hl == &r.H1 {
 			pt.hl = &pt.h1
@@ -159,7 +126,7 @@ func (idx *Index) addPoint(gr *gzip.Reader, n int64) {
 		}
 
 	}
-	// deep copy HuffmanDecoders
+	// copy HuffmanDecoders
 	if r.H1.Links != nil {
 		for i := range r.H1.Links {
 			pt.h1.Links[i] = append(pt.h1.Links[i], r.H1.Links[i]...)
@@ -174,7 +141,7 @@ func (idx *Index) addPoint(gr *gzip.Reader, n int64) {
 	} else {
 		pt.h2.Links = nil
 	}
-	// deep copy hist buf, bits, and codebits
+	// copy hist buf, bits, and codebits
 	copy(pt.hist[:], r.Hist[:])
 	copy(pt.bits[:], r.Bits[:])
 	copy(pt.codebits[:], r.Codebits[:])
@@ -187,11 +154,10 @@ func (idx *Index) addPoint(gr *gzip.Reader, n int64) {
 //func inflateResume(r io.Reader, pt *point) io.ReadCloser {
 func inflateResume(pt *point) *flate.Decompressor {
 	f := flate.Decompressor{
-		//Woffset: pt.woffset,
-
-		//Roffset: pt.roffset,
-		B:  pt.b,
-		Nb: pt.nb,
+		Woffset: pt.woffset,
+		Roffset: pt.roffset,
+		B:       pt.b,
+		Nb:      pt.nb,
 		H1: flate.HuffmanDecoder{
 			Min:      pt.h1.Min,
 			Chunks:   pt.h1.Chunks,
@@ -217,7 +183,7 @@ func inflateResume(pt *point) *flate.Decompressor {
 		CopyLen:  pt.copyLen,
 		CopyDist: pt.copyDist,
 	}
-	// restore hl and hd and make sure we don't dereference nil pointer
+	// restore hl and hd
 	if pt.hl != nil {
 		if pt.hl == &pt.h1 {
 			f.Hl = &f.H1
@@ -249,7 +215,7 @@ func inflateResume(pt *point) *flate.Decompressor {
 		}
 	}
 
-	// deep copy HuffmanDecoders
+	// restore HuffmanDecoders
 	for i := range pt.h1.Links {
 		f.H1.Links[i] = append(f.H1.Links[i], pt.h1.Links[i]...)
 	}
@@ -257,14 +223,10 @@ func inflateResume(pt *point) *flate.Decompressor {
 		f.H2.Links[i] = append(f.H2.Links[i], pt.h2.Links[i]...)
 	}
 
-	// deep copy hist buf, bits, and codebits
+	// restore hist buf, bits, and codebits
 	copy(f.Hist[:], pt.hist[:])
 	copy(f.Bits[:], pt.bits[:])
 	copy(f.Codebits[:], pt.codebits[:])
-
-	file, _ := os.Create("afterCompressor")
-	fmt.Fprintln(file, f.String())
-	file.Close()
 
 	return &f
 }
@@ -284,14 +246,13 @@ func readSpan(gr *gzip.Reader) ([]byte, error) {
 	return buf, nil
 }
 
-// BuildIndex works by decompressing the gzip stream a block at a time, and at
-// the end of each block deciding if enough uncompressed data has gone by to
-// justify the creation of a new access point. If so, that point is saved in
-// the Index. Access points created about every span bytes of uncompressed
-// output.
-// NOTE: Data after the end of the first gzip stream in the file is ignored.
-func BuildIndex(filename string) (Index, error) {
-	in, err := os.Open(filename)
+// BuildIndex decompresses given file and builds an index that records the
+// state of the gzip decompresser every Span bytes into the uncompressed data.
+// This index can be used to randomly read uncompressed data from the
+// compressed file. Data after the end of the first gzip stream in the
+// file is ignored and so concatenated gzip files are not supported.
+func BuildIndex(file string) (Index, error) {
+	in, err := os.Open(file)
 	if err != nil {
 		return nil, err
 	}
@@ -302,9 +263,6 @@ func BuildIndex(filename string) (Index, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// NOTE: will ACI's ever concatenate gzipped files? Looking at the spec it
-	// appears to be a single tar file compressed not a multistream gzip file.
 
 	// Concatenated gzips not supported,
 	rr.Multistream(false)
@@ -334,7 +292,7 @@ func BuildIndex(filename string) (Index, error) {
 // Extract uses an Index to read length bytes from offset into uncompressed
 // data. If data is requested past the end of the uncompressed data, Extract
 // will read less bytes then length and return io.EOF
-func Extract(filename string, idx Index, offset int64, length int64, head int) ([]byte, error) {
+func Extract(filename string, idx Index, offset int64, length int64) ([]byte, error) {
 	in, err := os.Open(filename)
 	if err != nil {
 		return []byte{}, err
@@ -349,15 +307,11 @@ func Extract(filename string, idx Index, offset int64, length int64, head int) (
 	for i := len(idx) - 1; i >= 0; i-- {
 		if idx[i].woffset <= offset {
 			pt = idx[i]
-			fmt.Println("Found access point:", i)
-			fmt.Printf("roffset: %v woffset: %v\n", pt.roffset, pt.woffset)
-			fmt.Printf("Wish to read %v bytes from offset %v\n", length, offset)
-			//fmt.Printf("Wish to read %v bytes from offset %v\n", length, offset)
 			break
 		}
 	}
 
-	// Read Gzip Header to find how many bytes are in the header
+	// Read gzip Header to find how many bytes are in the header
 	gr, err := gzip.NewReader(in)
 	if err != nil {
 		return []byte{}, err
@@ -378,49 +332,18 @@ func Extract(filename string, idx Index, offset int64, length int64, head int) (
 	if gr.Flg&gzip.FlagHdrCrc != 0 {
 		headerBytes += 2
 	}
-	//headerBytes--
 
 	// set file to start of block (roffset + header length)
 	_, err = in.Seek(pt.roffset+int64(headerBytes), 0)
 	if err != nil {
-		panic("seek not working")
 		return []byte{}, err
 	}
 
-	// restore decompressor state
+	// restore decompresser state
 	fr := inflateResume(pt)
-	inbuf := bufio.NewReader(in)
-	fr.R = inbuf
-	//err = fr.Reset(in, fr.Hist[:])
-	if err != nil {
-		panic(err)
-	}
+	fr.R = bufio.NewReader(in)
 
-	//sanity check, reader is restored to same reading position
-	p, err := fr.R.(*bufio.Reader).Peek(40)
-	for i := range p {
-		if p[i] != pt.peek[i] {
-			panic("Reader state not restored correctly")
-		}
-	}
-
-	/*
-		//sanity check if Hl references H1, check that it is restored similarly
-		if fr.Hl == &fr.H1 {
-			fmt.Println("Hl points")
-			//fr.Hl = &fr.H1
-		}
-		if fr.Hd == &fr.H2 {
-			fmt.Println("H2 points")
-			//fr.Hd = &fr.H2
-		}
-	*/
-	//fr := flate.NewReaderDict(in, pt.hist[:]).(*flate.Decompressor)
-	//fr.R = gz.Decompressor.(*flate.Decompressor).R
-	//fr.R = flate.MakeReader(in)
-
-	// inflate until out of input, offset - woffset +  bytes have been
-	// read, or end of file
+	// inflate until offset - woffset + bytes have been read, or end of file
 	b := make([]byte, length+offset-pt.woffset)
 	readWin := b
 	var totalRead int
@@ -429,10 +352,9 @@ func Extract(filename string, idx Index, offset int64, length int64, head int) (
 		totalRead += n
 		readWin = readWin[n:]
 
-		// finished file or read enough; return <= length bytes read
+		// finished file or read enough
 		if n == 0 || totalRead == len(b) || err == io.EOF {
 			return b[offset-pt.woffset:], err
 		}
-		//fmt.Println("extract looping again")
 	}
 }
