@@ -68,8 +68,8 @@ type Header struct {
 // marking the end of the data.
 type Reader struct {
 	Header
-	R            flate.Reader  //+pb: export
-	Decompressor io.ReadCloser //+pb: export
+	R            flate.Reader
+	Decompressor io.ReadCloser
 	digest       hash.Hash32
 	size         uint32
 	Flg          byte
@@ -239,12 +239,14 @@ func (z *Reader) readHeader(save bool) error {
 	}
 	return nil
 }
+
+// ReadBlock() is added to gzip for use with the zran package and its local
 func (z *Reader) ReadBlock() ([]byte, error) {
 	if z.err != nil {
 		return []byte{}, z.err
 	}
 
-	zr := z.Decompressor.(*flate.Decompressor) //io.ReadCloser -> flate.Decompressor to access ReadBlock()
+	zr := z.Decompressor.(*flate.Decompressor) // io.ReadCloser -> flate.Decompressor to access ReadBlock()
 	b, err := zr.ReadBlock()
 
 	z.digest.Write(b)
@@ -266,22 +268,8 @@ func (z *Reader) ReadBlock() ([]byte, error) {
 		return []byte{}, z.err
 	}
 
-	// mulistream un-supported
+	// multistream not supported
 	return []byte{}, io.EOF
-	/*
-		if !z.multistream {
-			return 0, io.EOF
-		}
-		if err = z.readHeader(false); err != nil {
-			z.err = err
-			return
-		}
-
-		// Yes.  Reset and read from it.
-		z.digest.Reset()
-		z.size = 0
-		return z.Read(p)
-	*/
 }
 
 func (z *Reader) Read(p []byte) (n int, err error) {

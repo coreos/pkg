@@ -291,7 +291,7 @@ func BuildIndex(file string) (Index, error) {
 
 // Extract uses an Index to read length bytes from offset into uncompressed
 // data. If data is requested past the end of the uncompressed data, Extract
-// will read less bytes then length and return io.EOF
+// will read less bytes then length and return io.EOF. Offset is zero indexed.
 func Extract(filename string, idx Index, offset int64, length int64) ([]byte, error) {
 	in, err := os.Open(filename)
 	if err != nil {
