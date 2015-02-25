@@ -22,10 +22,10 @@ const (
 	gzipID2     = 0x8b
 	gzipDeflate = 8
 	flagText    = 1 << 0
-	flagHdrCrc  = 1 << 1
-	flagExtra   = 1 << 2
-	flagName    = 1 << 3
-	flagComment = 1 << 4
+	FlagHdrCrc  = 1 << 1
+	FlagExtra   = 1 << 2
+	FlagName    = 1 << 3
+	FlagComment = 1 << 4
 )
 
 func makeReader(r io.Reader) flate.Reader {
@@ -72,7 +72,7 @@ type Reader struct {
 	Decompressor io.ReadCloser //+pb: export
 	digest       hash.Hash32
 	size         uint32
-	flg          byte
+	Flg          byte
 	buf          [512]byte
 	err          error
 	multistream  bool
@@ -178,7 +178,7 @@ func (z *Reader) readHeader(save bool) error {
 	if z.buf[0] != gzipID1 || z.buf[1] != gzipID2 || z.buf[2] != gzipDeflate {
 		return ErrHeader
 	}
-	z.flg = z.buf[3]
+	z.Flg = z.buf[3]
 	if save {
 		z.ModTime = time.Unix(int64(get4(z.buf[4:8])), 0)
 		// z.buf[8] is xfl, ignored
@@ -187,7 +187,7 @@ func (z *Reader) readHeader(save bool) error {
 	z.digest.Reset()
 	z.digest.Write(z.buf[0:10])
 
-	if z.flg&flagExtra != 0 {
+	if z.Flg&FlagExtra != 0 {
 		n, err := z.read2()
 		if err != nil {
 			return err
@@ -202,7 +202,7 @@ func (z *Reader) readHeader(save bool) error {
 	}
 
 	var s string
-	if z.flg&flagName != 0 {
+	if z.Flg&FlagName != 0 {
 		if s, err = z.readString(); err != nil {
 			return err
 		}
@@ -211,7 +211,7 @@ func (z *Reader) readHeader(save bool) error {
 		}
 	}
 
-	if z.flg&flagComment != 0 {
+	if z.Flg&FlagComment != 0 {
 		if s, err = z.readString(); err != nil {
 			return err
 		}
@@ -220,7 +220,7 @@ func (z *Reader) readHeader(save bool) error {
 		}
 	}
 
-	if z.flg&flagHdrCrc != 0 {
+	if z.Flg&FlagHdrCrc != 0 {
 		n, err := z.read2()
 		if err != nil {
 			return err
