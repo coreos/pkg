@@ -203,8 +203,10 @@ func (f *Decompressor) String() string {
 	s += fmt.Sprintf("Hw: %v\n", f.Hw)
 	s += fmt.Sprintf("Hfull: %v\n", f.Hfull)
 	s += fmt.Sprintf("Buf: %v\n", f.Buf)
+	s += fmt.Sprintf("Step: %#+v\n", f.Step)
 	s += fmt.Sprintf("Final: %v\n", f.Final)
 	s += fmt.Sprintf("Err: %v\n", f.Err)
+	s += fmt.Sprintf("ToRead: %#+v\n", f.ToRead)
 	s += fmt.Sprintf("CopyLen: %v\n", f.CopyLen)
 	s += fmt.Sprintf("CopyDist: %v\n", f.CopyDist)
 	if f.Hl != nil {
@@ -218,7 +220,6 @@ func (f *Decompressor) String() string {
 		s += fmt.Sprintf("Hd: nil\n")
 	}
 	return s
-
 }
 
 // The actual read interface needed by NewReader.
@@ -292,8 +293,8 @@ func (f *Decompressor) NextBlock() {
 	case 1:
 		// compressed, fixed Huffman tables
 		f.Hl = &fixedHuffmanDecoder
-		f.Hd = nil
-		//fmt.Println("at huffman 1")
+		//f.Hd = nil
+		fmt.Println("at huffman 1")
 		f.huffmanBlock()
 	case 2:
 		// compressed, dynamic Huffman tables
@@ -525,6 +526,7 @@ func (f *Decompressor) huffmanBlock() {
 
 		var dist int
 		if f.Hd == nil {
+			fmt.Println("f.Hd is nil")
 			for f.Nb < 5 {
 				if err = f.moreBits(); err != nil {
 					f.Err = err
@@ -535,6 +537,7 @@ func (f *Decompressor) huffmanBlock() {
 			f.B >>= 5
 			f.Nb -= 5
 		} else {
+			//fmt.Println("f.Hd is NOT nil")
 			if dist, err = f.huffSym(f.Hd); err != nil {
 				f.Err = err
 				return

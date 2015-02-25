@@ -10,7 +10,7 @@ import (
 const (
 	testData = "./testdata/tomsawyer.gz"
 	testAns  = "./testdata/ans"
-	offset   = 4 //change to 1<<20 to see error when reading from 2nd access point
+	offset   = 1<<20 + 4 //change to 1<<20 to see error when reading from 2nd access point
 	length   = 17
 )
 

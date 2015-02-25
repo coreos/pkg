@@ -46,6 +46,7 @@ type point struct {
 	// Temporary buffer (avoids repeated allocation).
 	buf [4]byte
 
+	step     func(*flate.Decompressor)
 	final    bool
 	err      error
 	hl, hd   *flate.HuffmanDecoder
@@ -88,6 +89,7 @@ func (idx *Index) addPoint(gr *gzip.Reader, n int64) {
 		panic("toRead not zero")
 	}
 
+	// Sanity check peek ahead and make sure when doing extract we are at the same point in the reader
 	p, err := gr.R.(*bufio.Reader).Peek(40)
 	if err != nil {
 		panic("peek didn't work")
@@ -117,6 +119,7 @@ func (idx *Index) addPoint(gr *gzip.Reader, n int64) {
 		hw:       r.Hw,
 		hfull:    r.Hfull,
 		buf:      r.Buf,
+		step:     r.Step,
 		final:    r.Final,
 		err:      r.Err,
 		copyLen:  r.CopyLen,
@@ -125,7 +128,6 @@ func (idx *Index) addPoint(gr *gzip.Reader, n int64) {
 	}
 	copy(pt.peek, p)
 
-	// make sure we don't dereference nil pointer
 	if r.Hl != nil {
 		if r.Hl == &r.H1 {
 			pt.hl = &pt.h1
@@ -185,11 +187,11 @@ func (idx *Index) addPoint(gr *gzip.Reader, n int64) {
 //func inflateResume(r io.Reader, pt *point) io.ReadCloser {
 func inflateResume(pt *point) *flate.Decompressor {
 	f := flate.Decompressor{
-		Woffset: pt.woffset,
+		//Woffset: pt.woffset,
 
-		Roffset: pt.roffset,
-		B:       pt.b,
-		Nb:      pt.nb,
+		//Roffset: pt.roffset,
+		B:  pt.b,
+		Nb: pt.nb,
 		H1: flate.HuffmanDecoder{
 			Min:      pt.h1.Min,
 			Chunks:   pt.h1.Chunks,
@@ -202,7 +204,6 @@ func inflateResume(pt *point) *flate.Decompressor {
 			LinkMask: pt.h2.LinkMask,
 			Links:    make([][]uint32, len(pt.h2.Links)),
 		},
-
 		Bits:     new([flate.MaxLit + flate.MaxDist]int),
 		Codebits: new([flate.NumCodes]int),
 		Hist:     new([flate.MaxHist]byte),
@@ -210,12 +211,13 @@ func inflateResume(pt *point) *flate.Decompressor {
 		Hw:       pt.hw,
 		Hfull:    pt.hfull,
 		Buf:      pt.buf,
+		Step:     pt.step,
 		Final:    pt.final,
 		Err:      pt.err,
 		CopyLen:  pt.copyLen,
 		CopyDist: pt.copyDist,
 	}
-	// make sure we don't dereference nil pointer
+	// restore hl and hd and make sure we don't dereference nil pointer
 	if pt.hl != nil {
 		if pt.hl == &pt.h1 {
 			f.Hl = &f.H1
@@ -259,9 +261,6 @@ func inflateResume(pt *point) *flate.Decompressor {
 	copy(f.Hist[:], pt.hist[:])
 	copy(f.Bits[:], pt.bits[:])
 	copy(f.Codebits[:], pt.codebits[:])
-
-	//f.R = flate.MakeReader(r)
-	f.Step = (*flate.Decompressor).NextBlock
 
 	file, _ := os.Create("afterCompressor")
 	fmt.Fprintln(file, f.String())
