@@ -1,13 +1,13 @@
-// Package gzran is a go implementation of zran by Mark Adler
-// (https://github.com/madler/zlib/blob/master/examples/zran.c). Gzran takes a
-// compressed gzip file. This stream is decoded in its entirety, and an index
-// is built with access points about every span bytes in the uncompressed
-// output. The compressed file is left open, and can be read randomly, having
-// to decompress on the average SPAN/2 uncompressed bytes before getting to the
-// desired block of data.
+// Package gzran is a go implementation of zran by Mark Adler:
+// https://github.com/madler/zlib/blob/master/examples/zran.c
+// Gzran indexes a gzip file with access points about every span bytes into the
+// uncompressed output. The compressed file can be read from randomly once an
+// index has been built, having to decompress on the average SPAN/2
+// uncompressed bytes before getting to the desired block of data.
 package gzran
 
 import (
+	"bufio"
 	"io"
 	"os"
 
@@ -57,9 +57,9 @@ type point struct {
 	copyDist int
 }
 
-func (idx *Index) addPoint(gr *gzip.Reader, n int64) {
+func (idx *Index) addPoint(gz *gzip.Reader, n int64) {
 	// convert from io.ReadCloser to flate.Decompresser
-	r := gr.Decompressor.(*flate.Decompressor)
+	r := gz.Decompressor.(*flate.Decompressor)
 
 	// save decompressor state
 	pt := &point{
@@ -256,5 +256,161 @@ func BuildIndex(file string) (Index, error) {
 
 		totalRead += int64(len(b))
 		idx.addPoint(rr, totalRead)
+	}
+}
+
+// Restores decompressor to equivalent state as when index access point was taken
+func inflateResume(r io.Reader, pt *point) io.ReadCloser {
+	f := flate.Decompressor{
+		Woffset: pt.woffset,
+		Roffset: pt.roffset,
+		B:       pt.b,
+		Nb:      pt.nb,
+		H1: flate.HuffmanDecoder{
+			Min:      pt.h1.Min,
+			Chunks:   pt.h1.Chunks,
+			LinkMask: pt.h1.LinkMask,
+			Links:    make([][]uint32, len(pt.h1.Links)),
+		},
+		H2: flate.HuffmanDecoder{
+			Min:      pt.h2.Min,
+			Chunks:   pt.h2.Chunks,
+			LinkMask: pt.h2.LinkMask,
+			Links:    make([][]uint32, len(pt.h2.Links)),
+		},
+		Bits:     new([flate.MaxLit + flate.MaxDist]int),
+		Codebits: new([flate.NumCodes]int),
+		Hist:     new([flate.MaxHist]byte),
+		Hp:       pt.hp,
+		Hw:       pt.hw,
+		Hfull:    pt.hfull,
+		Buf:      pt.buf,
+		Step:     pt.step,
+		Final:    pt.final,
+		Err:      pt.err,
+		CopyLen:  pt.copyLen,
+		CopyDist: pt.copyDist,
+	}
+	// restore hl and hd
+	if pt.hl != nil {
+		if pt.hl == &pt.h1 {
+			f.Hl = &f.H1
+		} else {
+			f.Hl = &flate.HuffmanDecoder{
+				Min:      pt.hl.Min,
+				Chunks:   pt.hl.Chunks,
+				LinkMask: pt.hl.LinkMask,
+				Links:    make([][]uint32, len(pt.hl.Links)),
+			}
+			for i := range pt.hl.Links {
+				f.Hl.Links[i] = append(f.Hl.Links[i], pt.hl.Links[i]...)
+			}
+		}
+	}
+	if pt.hd != nil {
+		if pt.hd == &pt.h2 {
+			f.Hd = &f.H2
+		} else {
+			f.Hd = &flate.HuffmanDecoder{
+				Min:      pt.hd.Min,
+				Chunks:   pt.hd.Chunks,
+				LinkMask: pt.hd.LinkMask,
+				Links:    make([][]uint32, len(pt.hd.Links)),
+			}
+			for i := range pt.hd.Links {
+				f.Hd.Links[i] = append(f.Hd.Links[i], pt.hd.Links[i]...)
+			}
+		}
+	}
+
+	// restore HuffmanDecoders
+	for i := range pt.h1.Links {
+		f.H1.Links[i] = append(f.H1.Links[i], pt.h1.Links[i]...)
+	}
+	for i := range pt.h2.Links {
+		f.H2.Links[i] = append(f.H2.Links[i], pt.h2.Links[i]...)
+	}
+
+	// restore hist buf, bits, and codebits
+	copy(f.Hist[:], pt.hist[:])
+	copy(f.Bits[:], pt.bits[:])
+	copy(f.Codebits[:], pt.codebits[:])
+
+	f.R = bufio.NewReader(r)
+	return &f
+}
+
+func getHeaderLen(gz *gzip.Reader) int {
+	var l int = 10 //min valid gzip header length
+	if gz.Flg&gzip.FlagName != 0 {
+		l += len(gz.Header.Name) + 1 // +1 for null term
+	}
+	if gz.Flg&gzip.FlagExtra != 0 {
+		l += len(gz.Header.Extra) + 2 // +2 for XLEN
+	}
+	if gz.Flg&gzip.FlagComment != 0 {
+		l += len(gz.Header.Comment) + 1 // +1 for null term
+	}
+	if gz.Flg&gzip.FlagHdrCrc != 0 {
+		l += 2
+	}
+	return l
+}
+
+// Extract uses an Index to read length bytes from offset into uncompressed
+// data. If data is requested past the end of the uncompressed data, Extract
+// will read less bytes then length and return io.EOF. Offset is zero indexed.
+func Extract(filename string, idx Index, offset int64, length int64) ([]byte, error) {
+	in, err := os.Open(filename)
+	if err != nil {
+		return []byte{}, err
+	}
+	defer in.Close()
+
+	if length <= 0 || idx == nil {
+		return []byte{}, nil
+	}
+
+	// find access point
+	var pt *point
+	for i := len(idx) - 1; i >= 0; i-- {
+		if idx[i].woffset <= offset {
+			pt = idx[i]
+			break
+		}
+	}
+
+	// Read gzip Header to find how many bytes are in the header
+	gz, err := gzip.NewReader(in)
+	if err != nil {
+		return []byte{}, err
+	}
+	gz.Close()
+
+	// get header length
+	headerBytes := getHeaderLen(gz)
+
+	// set file to start of block (roffset + header length)
+	_, err = in.Seek(pt.roffset+int64(headerBytes), 0)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	// restore decompresser state
+	fr := inflateResume(in, pt)
+
+	// inflate until offset - woffset + bytes have been read, or end of file
+	b := make([]byte, length+offset-pt.woffset)
+	readWin := b
+	var totalRead int
+	for {
+		n, err := fr.Read(readWin)
+		totalRead += n
+		readWin = readWin[n:]
+
+		// finished file or read enough
+		if n == 0 || totalRead == len(b) || err == io.EOF {
+			return b[offset-pt.woffset:], err
+		}
 	}
 }

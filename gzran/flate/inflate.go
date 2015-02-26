@@ -197,7 +197,7 @@ type Reader interface {
 // Decompress state.
 type Decompressor struct {
 	// Input source.
-	r       Reader
+	R       Reader
 	Roffset int64
 	Woffset int64
 
@@ -564,7 +564,7 @@ func (f *Decompressor) dataBlock() {
 	f.B = 0
 
 	// Length then ones-complement of length.
-	nr, err := io.ReadFull(f.r, f.Buf[0:4])
+	nr, err := io.ReadFull(f.R, f.Buf[0:4])
 	f.Roffset += int64(nr)
 	if err != nil {
 		f.Err = &ReadError{f.Roffset, err}
@@ -596,7 +596,7 @@ func (f *Decompressor) copyData() {
 		if m > n {
 			m = n
 		}
-		m, err := io.ReadFull(f.r, f.Hist[f.Hp:f.Hp+m])
+		m, err := io.ReadFull(f.R, f.Hist[f.Hp:f.Hp+m])
 		f.Roffset += int64(m)
 		if err != nil {
 			f.Err = &ReadError{f.Roffset, err}
@@ -628,7 +628,7 @@ func (f *Decompressor) setDict(dict []byte) {
 }
 
 func (f *Decompressor) moreBits() error {
-	c, err := f.r.ReadByte()
+	c, err := f.R.ReadByte()
 	if err != nil {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
@@ -690,7 +690,7 @@ func makeReader(r io.Reader) Reader {
 
 func (f *Decompressor) Reset(r io.Reader, dict []byte) error {
 	*f = Decompressor{
-		r:        makeReader(r),
+		R:        makeReader(r),
 		Bits:     f.Bits,
 		Codebits: f.Codebits,
 		Hist:     f.Hist,
@@ -714,7 +714,7 @@ func NewReader(r io.Reader) io.ReadCloser {
 	var f Decompressor
 	f.Bits = new([MaxLit + MaxDist]int)
 	f.Codebits = new([NumCodes]int)
-	f.r = makeReader(r)
+	f.R = makeReader(r)
 	f.Hist = new([MaxHist]byte)
 	f.Step = (*Decompressor).nextBlock
 	return &f
@@ -729,7 +729,7 @@ func NewReader(r io.Reader) io.ReadCloser {
 // The ReadCloser returned by NewReader also implements Resetter.
 func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
 	var f Decompressor
-	f.r = makeReader(r)
+	f.R = makeReader(r)
 	f.Hist = new([MaxHist]byte)
 	f.Bits = new([MaxLit + MaxDist]int)
 	f.Codebits = new([NumCodes]int)
