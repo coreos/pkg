@@ -5,12 +5,13 @@
 package gzip
 
 import (
-	"compress/flate"
 	"errors"
 	"fmt"
 	"hash"
 	"hash/crc32"
 	"io"
+
+	"github.com/coreos/pkg/gzran/flate"
 )
 
 // These constants are copied from the flate package, so that code that imports

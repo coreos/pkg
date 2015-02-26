@@ -8,12 +8,13 @@ package gzip
 
 import (
 	"bufio"
-	"compress/flate"
 	"errors"
 	"hash"
 	"hash/crc32"
 	"io"
 	"time"
+
+	"github.com/coreos/pkg/gzran/flate"
 )
 
 const (
@@ -67,13 +68,13 @@ type Header struct {
 // marking the end of the data.
 type Reader struct {
 	Header
-	r            flate.Reader
-	decompressor io.ReadCloser
-	digest       hash.Hash32
-	size         uint32
+	R            flate.Reader
+	Decompressor io.ReadCloser
+	Digest       hash.Hash32
+	Size         uint32
 	flg          byte
-	buf          [512]byte
-	err          error
+	Buf          [512]byte
+	Err          error
 	multistream  bool
 }
 
@@ -83,9 +84,9 @@ type Reader struct {
 // It is the caller's responsibility to call Close on the Reader when done.
 func NewReader(r io.Reader) (*Reader, error) {
 	z := new(Reader)
-	z.r = makeReader(r)
+	z.R = makeReader(r)
 	z.multistream = true
-	z.digest = crc32.NewIEEE()
+	z.Digest = crc32.NewIEEE()
 	if err := z.readHeader(true); err != nil {
 		return nil, err
 	}
@@ -96,14 +97,14 @@ func NewReader(r io.Reader) (*Reader, error) {
 // result of its original state from NewReader, but reading from r instead.
 // This permits reusing a Reader rather than allocating a new one.
 func (z *Reader) Reset(r io.Reader) error {
-	z.r = makeReader(r)
-	if z.digest == nil {
-		z.digest = crc32.NewIEEE()
+	z.R = makeReader(r)
+	if z.Digest == nil {
+		z.Digest = crc32.NewIEEE()
 	} else {
-		z.digest.Reset()
+		z.Digest.Reset()
 	}
-	z.size = 0
-	z.err = nil
+	z.Size = 0
+	z.Err = nil
 	z.multistream = true
 	return z.readHeader(true)
 }
@@ -129,7 +130,7 @@ func (z *Reader) Multistream(ok bool) {
 }
 
 // GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
-func get4(p []byte) uint32 {
+func Get4(p []byte) uint32 {
 	return uint32(p[0]) | uint32(p[1])<<8 | uint32(p[2])<<16 | uint32(p[3])<<24
 }
 
@@ -137,54 +138,54 @@ func (z *Reader) readString() (string, error) {
 	var err error
 	needconv := false
 	for i := 0; ; i++ {
-		if i >= len(z.buf) {
+		if i >= len(z.Buf) {
 			return "", ErrHeader
 		}
-		z.buf[i], err = z.r.ReadByte()
+		z.Buf[i], err = z.R.ReadByte()
 		if err != nil {
 			return "", err
 		}
-		if z.buf[i] > 0x7f {
+		if z.Buf[i] > 0x7f {
 			needconv = true
 		}
-		if z.buf[i] == 0 {
+		if z.Buf[i] == 0 {
 			// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
 			if needconv {
 				s := make([]rune, 0, i)
-				for _, v := range z.buf[0:i] {
+				for _, v := range z.Buf[0:i] {
 					s = append(s, rune(v))
 				}
 				return string(s), nil
 			}
-			return string(z.buf[0:i]), nil
+			return string(z.Buf[0:i]), nil
 		}
 	}
 }
 
 func (z *Reader) read2() (uint32, error) {
-	_, err := io.ReadFull(z.r, z.buf[0:2])
+	_, err := io.ReadFull(z.R, z.Buf[0:2])
 	if err != nil {
 		return 0, err
 	}
-	return uint32(z.buf[0]) | uint32(z.buf[1])<<8, nil
+	return uint32(z.Buf[0]) | uint32(z.Buf[1])<<8, nil
 }
 
 func (z *Reader) readHeader(save bool) error {
-	_, err := io.ReadFull(z.r, z.buf[0:10])
+	_, err := io.ReadFull(z.R, z.Buf[0:10])
 	if err != nil {
 		return err
 	}
-	if z.buf[0] != gzipID1 || z.buf[1] != gzipID2 || z.buf[2] != gzipDeflate {
+	if z.Buf[0] != gzipID1 || z.Buf[1] != gzipID2 || z.Buf[2] != gzipDeflate {
 		return ErrHeader
 	}
-	z.flg = z.buf[3]
+	z.flg = z.Buf[3]
 	if save {
-		z.ModTime = time.Unix(int64(get4(z.buf[4:8])), 0)
+		z.ModTime = time.Unix(int64(Get4(z.Buf[4:8])), 0)
 		// z.buf[8] is xfl, ignored
-		z.OS = z.buf[9]
+		z.OS = z.Buf[9]
 	}
-	z.digest.Reset()
-	z.digest.Write(z.buf[0:10])
+	z.Digest.Reset()
+	z.Digest.Write(z.Buf[0:10])
 
 	if z.flg&flagExtra != 0 {
 		n, err := z.read2()
@@ -192,7 +193,7 @@ func (z *Reader) readHeader(save bool) error {
 			return err
 		}
 		data := make([]byte, n)
-		if _, err = io.ReadFull(z.r, data); err != nil {
+		if _, err = io.ReadFull(z.R, data); err != nil {
 			return err
 		}
 		if save {
@@ -224,47 +225,47 @@ func (z *Reader) readHeader(save bool) error {
 		if err != nil {
 			return err
 		}
-		sum := z.digest.Sum32() & 0xFFFF
+		sum := z.Digest.Sum32() & 0xFFFF
 		if n != sum {
 			return ErrHeader
 		}
 	}
 
-	z.digest.Reset()
-	if z.decompressor == nil {
-		z.decompressor = flate.NewReader(z.r)
+	z.Digest.Reset()
+	if z.Decompressor == nil {
+		z.Decompressor = flate.NewReader(z.R)
 	} else {
-		z.decompressor.(flate.Resetter).Reset(z.r, nil)
+		z.Decompressor.(flate.Resetter).Reset(z.R, nil)
 	}
 	return nil
 }
 
 func (z *Reader) Read(p []byte) (n int, err error) {
-	if z.err != nil {
-		return 0, z.err
+	if z.Err != nil {
+		return 0, z.Err
 	}
 	if len(p) == 0 {
 		return 0, nil
 	}
 
-	n, err = z.decompressor.Read(p)
-	z.digest.Write(p[0:n])
-	z.size += uint32(n)
+	n, err = z.Decompressor.Read(p)
+	z.Digest.Write(p[0:n])
+	z.Size += uint32(n)
 	if n != 0 || err != io.EOF {
-		z.err = err
+		z.Err = err
 		return
 	}
 
 	// Finished file; check checksum + size.
-	if _, err := io.ReadFull(z.r, z.buf[0:8]); err != nil {
-		z.err = err
+	if _, err := io.ReadFull(z.R, z.Buf[0:8]); err != nil {
+		z.Err = err
 		return 0, err
 	}
-	crc32, isize := get4(z.buf[0:4]), get4(z.buf[4:8])
-	sum := z.digest.Sum32()
-	if sum != crc32 || isize != z.size {
-		z.err = ErrChecksum
-		return 0, z.err
+	crc32, isize := Get4(z.Buf[0:4]), Get4(z.Buf[4:8])
+	sum := z.Digest.Sum32()
+	if sum != crc32 || isize != z.Size {
+		z.Err = ErrChecksum
+		return 0, z.Err
 	}
 
 	// File is ok; is there another?
@@ -273,15 +274,15 @@ func (z *Reader) Read(p []byte) (n int, err error) {
 	}
 
 	if err = z.readHeader(false); err != nil {
-		z.err = err
+		z.Err = err
 		return
 	}
 
 	// Yes.  Reset and read from it.
-	z.digest.Reset()
-	z.size = 0
+	z.Digest.Reset()
+	z.Size = 0
 	return z.Read(p)
 }
 
 // Close closes the Reader. It does not close the underlying io.Reader.
-func (z *Reader) Close() error { return z.decompressor.Close() }
+func (z *Reader) Close() error { return z.Decompressor.Close() }
