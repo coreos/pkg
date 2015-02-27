@@ -411,6 +411,8 @@ func Extract(filename string, idx Index, offset int64, length int64) ([]byte, er
 		// finished file or read enough
 		if n == 0 || totalRead == len(b) || err == io.EOF {
 			return b[offset-pt.woffset:], err
+		} else if err != nil {
+			return []byte{}, err
 		}
 	}
 }
