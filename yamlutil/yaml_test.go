@@ -59,3 +59,22 @@ func TestSetFlagsFromYamlBad(t *testing.T) {
 		t.Errorf("got err=nil, flag x=%q, want err != nil", fs.Lookup("x").Value.String())
 	}
 }
+
+func TestSetFlagsFromYamlMultiError(t *testing.T) {
+	fs := flag.NewFlagSet("testing", flag.ExitOnError)
+	fs.Int("x", 0, "")
+	fs.Int("y", 0, "")
+	fs.Int("z", 0, "")
+	conf := "X: foo\nY: bar\nZ: 3"
+	err := SetFlagsFromYaml(fs, []byte(conf))
+	if err == nil {
+		t.Errorf("got err= nil, want err != nil")
+	}
+	es, ok := err.(ErrorSlice)
+	if !ok {
+		t.Errorf("Got ok=false want ok=true")
+	}
+	if len(es) != 2 {
+		t.Errorf("2 errors should be contained in the error, got %d errors", len(es))
+	}
+}
