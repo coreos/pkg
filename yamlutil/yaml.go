@@ -16,22 +16,26 @@ func SetFlagsFromYaml(fs *flag.FlagSet, rawYaml []byte) (err error) {
 	if err = yaml.Unmarshal(rawYaml, conf); err != nil {
 		return
 	}
-	alreadySet := make(map[string]bool)
+	alreadySet := map[string]struct{}{}
 	fs.Visit(func(f *flag.Flag) {
-		alreadySet[f.Name] = true
+		alreadySet[f.Name] = struct{}{}
 	})
 
 	errs := make([]error, 0)
 	fs.VisitAll(func(f *flag.Flag) {
-		if f.Name != "" && !alreadySet[f.Name] {
-			tag := strings.Replace(strings.ToUpper(f.Name), "-", "_", -1)
-			val, ok := conf[tag]
-			if !ok {
-				return
-			}
-			if serr := fs.Set(f.Name, val); serr != nil {
-				errs = append(errs, fmt.Errorf("invalid value %q for %s: %v", val, tag, serr))
-			}
+		if f.Name == "" {
+			return
+		}
+		if _, ok := alreadySet[f.Name]; ok {
+			return
+		}
+		tag := strings.Replace(strings.ToUpper(f.Name), "-", "_", -1)
+		val, ok := conf[tag]
+		if !ok {
+			return
+		}
+		if serr := fs.Set(f.Name, val); serr != nil {
+			errs = append(errs, fmt.Errorf("invalid value %q for %s: %v", val, tag, serr))
 		}
 	})
 	if len(errs) != 0 {
