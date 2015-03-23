@@ -20,11 +20,9 @@ Still the job of `main` to expose these configurations. `main` may delegate this
 
 `main` activates logging for its repository and any dependency repositories it would also like to have output in its logstream. `main` also dictates at which level each subpackage logs.
 
-* There is *one* output stream, and it is an `io.Writer`
+* There is *one* output stream, and it is an `io.Writer` composed with a formatter.
 
 Splitting streams is probably not the job of your program, but rather, your log aggregation framework. If you must split output streams, again, `main` configures this and you can write a very simple two-output struct that satisfies io.Writer.
-
-* As a corrolary to *one* output stream, there is *one* formatter. 
 
 Fancy colorful formatting and JSON output are beyond the scope of a basic logging framework -- they're application/log-collector dependant. These are, at best, provided as options, but more likely, provided by your application.
 

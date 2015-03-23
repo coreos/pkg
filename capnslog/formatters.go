@@ -1,4 +1,4 @@
-package corelog
+package capnslog
 
 import (
 	"bufio"
@@ -15,7 +15,12 @@ var pid = os.Getpid()
 
 type Formatter interface {
 	Format(pkg string, level LogLevel, depth int, entries ...LogEntry)
-	SetWriter(w io.Writer)
+}
+
+func NewStringFormatter(w io.Writer) *StringFormatter {
+	return &StringFormatter{
+		w: bufio.NewWriter(w),
+	}
 }
 
 type StringFormatter struct {
@@ -37,17 +42,19 @@ func (s *StringFormatter) Format(pkg string, _ LogLevel, _ int, entries ...LogEn
 	s.w.Flush()
 }
 
-func (s *StringFormatter) SetWriter(w io.Writer) {
-	s.w = bufio.NewWriter(w)
-}
-
 type GlogFormatter struct {
 	StringFormatter
 }
 
+func NewGlogFormatter(w io.Writer) *GlogFormatter {
+	g := &GlogFormatter{}
+	g.w = bufio.NewWriter(w)
+	return g
+}
+
 func (g GlogFormatter) Format(pkg string, level LogLevel, depth int, entries ...LogEntry) {
 	g.w.Write(GlogHeader(level, depth+1))
-	g.StringFormatter.Format(pkg, level, depth, entries...)
+	g.StringFormatter.Format(pkg, level, depth+1, entries...)
 }
 
 func GlogHeader(level LogLevel, depth int) []byte {

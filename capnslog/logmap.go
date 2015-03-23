@@ -1,8 +1,7 @@
-package corelog
+package capnslog
 
 import (
 	"fmt"
-	"io"
 	"strings"
 	"sync"
 )
@@ -17,12 +16,14 @@ const (
 	ERROR = 0
 	// WARNING is for errors which are not fatal and not errors, but are unusual. Often sourced from misconfigurations.
 	WARNING = 1
+	// NOTICE is for normal but significant conditions.
+	NOTICE = 2
 	// INFO is a log level for common, everyday log updates.
-	INFO = 2
+	INFO = 3
 	// DEBUG is the default hidden level for more verbose updates about internal processes.
-	DEBUG = 3
+	DEBUG = 4
 	// VERBOSE is for (potentially) call by call tracing of programs.
-	VERBOSE = 4
+	VERBOSE = 5
 )
 
 // Char returns a single-character representation of the log level.
@@ -34,6 +35,8 @@ func (l LogLevel) Char() string {
 		return "E"
 	case WARNING:
 		return "W"
+	case NOTICE:
+		return "N"
 	case INFO:
 		return "I"
 	case DEBUG:
@@ -46,20 +49,22 @@ func (l LogLevel) Char() string {
 }
 
 // ParseLevel translates some potential loglevel strings into their corresponding levels.
-func ParseLevel(s string) LogLevel {
+func ParseLevel(s string) (LogLevel, error) {
 	switch s {
 	case "ERROR", "0", "E":
-		return ERROR
+		return ERROR, nil
 	case "WARNING", "1", "W":
-		return WARNING
-	case "INFO", "2", "I":
-		return INFO
-	case "DEBUG", "3", "D":
-		return DEBUG
-	case "VERBOSE", "4", "V":
-		return VERBOSE
+		return WARNING, nil
+	case "NOTICE", "2", "N":
+		return INFO, nil
+	case "INFO", "3", "I":
+		return INFO, nil
+	case "DEBUG", "4", "D":
+		return DEBUG, nil
+	case "VERBOSE", "5", "V":
+		return VERBOSE, nil
 	}
-	return CRITICAL
+	return CRITICAL, fmt.Errorf("couldn't parse log level %s", s)
 }
 
 type repoLogger map[string]*packageLogger
@@ -75,7 +80,6 @@ type loggerStruct struct {
 	lock      sync.Mutex
 	repoMap   map[string]repoLogger
 	formatter Formatter
-	output    io.Writer
 }
 
 // logger is the global logger
@@ -87,7 +91,7 @@ func RepoLogger(repo string) (repoLogger, error) {
 	defer logger.lock.Unlock()
 	r, ok := logger.repoMap[repo]
 	if !ok {
-		return nil, fmt.Errorf("No packages registered for repo %s", repo)
+		return nil, fmt.Errorf("no packages registered for repo %s", repo)
 	}
 	return r, nil
 }
@@ -102,7 +106,7 @@ func MustRepoLogger(repo string) repoLogger {
 }
 
 // SetLogLevel sets the log level for all packages in the repository.
-func (r repoLogger) SetLogLevel(l LogLevel) {
+func (r repoLogger) SetGlobalLogLevel(l LogLevel) {
 	logger.lock.Lock()
 	defer logger.lock.Unlock()
 	for _, v := range r {
@@ -110,51 +114,45 @@ func (r repoLogger) SetLogLevel(l LogLevel) {
 	}
 }
 
-// ConfigLogLevel parses a comma-separated string of "package=loglevel", in
-// order, and sets the log levels in each package appropriately.
-func (r repoLogger) ConfigLogLevel(conf string) {
+// ParseLogLevelConfig parses a comma-separated string of "package=loglevel", in
+// order, and returns a map of the results, for use in SetLogLevel.
+func (r repoLogger) ParseLogLevelConfig(conf string) (map[string]LogLevel, error) {
 	setlist := strings.Split(conf, ",")
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
+	out := make(map[string]LogLevel)
 	for _, setstring := range setlist {
 		setting := strings.Split(setstring, "=")
 		if len(setting) != 2 {
 			continue
 		}
-		if setting[0] == "*" {
-			l := ParseLevel(setting[1])
-			for _, v := range r {
-				v.level = l
-			}
-			continue
+		l, err := ParseLevel(setting[1])
+		if err != nil {
+			return nil, err
 		}
-		l, ok := r[setting[0]]
+		out[setting[0]] = l
+	}
+	return out, nil
+}
+
+func (r repoLogger) SetLogLevel(m map[string]LogLevel) {
+	if l, ok := m["*"]; ok {
+		r.SetGlobalLogLevel(l)
+	}
+	logger.lock.Lock()
+	defer logger.lock.Unlock()
+	for k, v := range m {
+		l, ok := r[k]
 		if !ok {
 			continue
 		}
-		l.level = ParseLevel(setting[1])
-	}
-
-}
-
-// SetOutput sets the output io.Writer of all logs.
-func SetOutput(output io.Writer) {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
-	logger.output = output
-	if logger.formatter != nil {
-		logger.formatter.SetWriter(logger.output)
+		l.level = v
 	}
 }
 
-// SetOutput sets the formatting function for all logs.
+// SetFormatter sets the formatting function for all logs.
 func SetFormatter(f Formatter) {
 	logger.lock.Lock()
 	defer logger.lock.Unlock()
 	logger.formatter = f
-	if logger.output != nil {
-		logger.formatter.SetWriter(logger.output)
-	}
 }
 
 // NewPackageLogger creates a package logger object.

@@ -1,4 +1,4 @@
-package corelog
+package capnslog
 
 import (
 	"fmt"
@@ -10,12 +10,12 @@ type packageLogger struct {
 	level LogLevel
 }
 
-const calldepth = 2
+const calldepth = 3
 
 func (p *packageLogger) internalLog(depth int, inLevel LogLevel, entries ...LogEntry) {
 	logger.lock.Lock()
 	defer logger.lock.Unlock()
-	if logger.formatter != nil && logger.output != nil {
+	if logger.formatter != nil {
 		logger.formatter.Format(p.pkg, inLevel, depth+1, entries...)
 	}
 }
@@ -130,6 +130,32 @@ func (p *packageLogger) Warning(entries ...LogEntry) {
 
 func (p *packageLogger) WARNING() bool {
 	return p.level < WARNING
+}
+
+// Notice Functions
+func (p *packageLogger) Noticeln(args ...interface{}) {
+	if p.level < NOTICE {
+		return
+	}
+	p.internalLog(calldepth, NOTICE, BaseLogEntry(fmt.Sprintln(args...)))
+}
+
+func (p *packageLogger) Noticef(format string, args ...interface{}) {
+	if p.level < NOTICE {
+		return
+	}
+	p.internalLog(calldepth, NOTICE, BaseLogEntry(fmt.Sprintf(format, args...)))
+}
+
+func (p *packageLogger) Notice(entries ...LogEntry) {
+	if p.level < NOTICE {
+		return
+	}
+	p.internalLog(calldepth, NOTICE, entries...)
+}
+
+func (p *packageLogger) NOTICE() bool {
+	return p.level < NOTICE
 }
 
 // Info Functions
