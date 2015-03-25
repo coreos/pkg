@@ -4,10 +4,6 @@ There are far too many logging packages out there, with varying degrees of licen
 
 ## Design Principles
 
-* Logging is off by default, except critical failures, which are unrecoverable.
-
-Log functions are helpful but silenced until explicitly activated.
-
 * `package main` is the place where logging gets turned on and routed
 
 A library should not touch log options, only generate log entries. Libraries are silent until main lets them speak.
@@ -35,7 +31,8 @@ An object knows best how to print itself. Log objects can collect more interesti
   * Critical: Unrecoverable. Must fail.
   * Error: Data has been lost, a request has failed for a bad reason, or a required resource has been lost
   * Warning: (Hopefully) Temporary conditions that may cause errors, but may work fine. A replica disappearing (that may reconnect) is a warning.
-  * Info: Normal, working log information, everything is fine, but helpful notices for auditing or uncommon operations.
+  * Notice: Normal, but important (uncommon) log information.
+  * Info: Normal, working log information, everything is fine, but helpful notices for auditing or common operations.
   * Debug: Everything is still fine, but even common operations may be logged, and less helpful but more quantity of notices.
-  * Verbose: Anything goes, from logging every function call as part of a common operation, to tracing execution of a query.
+  * Trace: Anything goes, from logging every function call as part of a common operation, to tracing execution of a query.
 

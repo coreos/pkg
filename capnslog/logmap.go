@@ -22,8 +22,8 @@ const (
 	INFO = 3
 	// DEBUG is the default hidden level for more verbose updates about internal processes.
 	DEBUG = 4
-	// VERBOSE is for (potentially) call by call tracing of programs.
-	VERBOSE = 5
+	// TRACE is for (potentially) call by call tracing of programs.
+	TRACE = 5
 )
 
 // Char returns a single-character representation of the log level.
@@ -41,8 +41,8 @@ func (l LogLevel) Char() string {
 		return "I"
 	case DEBUG:
 		return "D"
-	case VERBOSE:
-		return "V"
+	case TRACE:
+		return "T"
 	default:
 		panic("Unhandled loglevel")
 	}
@@ -51,6 +51,8 @@ func (l LogLevel) Char() string {
 // ParseLevel translates some potential loglevel strings into their corresponding levels.
 func ParseLevel(s string) (LogLevel, error) {
 	switch s {
+	case "CRITICAL", "C":
+		return CRITICAL, nil
 	case "ERROR", "0", "E":
 		return ERROR, nil
 	case "WARNING", "1", "W":
@@ -61,8 +63,8 @@ func ParseLevel(s string) (LogLevel, error) {
 		return INFO, nil
 	case "DEBUG", "4", "D":
 		return DEBUG, nil
-	case "VERBOSE", "5", "V":
-		return VERBOSE, nil
+	case "TRACE", "5", "T":
+		return TRACE, nil
 	}
 	return CRITICAL, fmt.Errorf("couldn't parse log level %s", s)
 }
@@ -172,7 +174,7 @@ func NewPackageLogger(repo string, pkg string) (p *packageLogger) {
 	if !pok {
 		r[pkg] = &packageLogger{
 			pkg:   pkg,
-			level: CRITICAL,
+			level: INFO,
 		}
 		p = r[pkg]
 	}

@@ -36,7 +36,7 @@ func (s *syslogFormatter) Format(pkg string, l LogLevel, _ int, entries ...LogEn
 			s.w.Info(str)
 		case DEBUG:
 			s.w.Debug(str)
-		case VERBOSE:
+		case TRACE:
 			s.w.Debug(str)
 		default:
 			panic("Unhandled loglevel")
