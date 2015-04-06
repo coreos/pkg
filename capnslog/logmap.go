@@ -1,7 +1,7 @@
 package capnslog
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 	"sync"
 )
@@ -10,7 +10,7 @@ import (
 type LogLevel int8
 
 const (
-	// CRITICAL is the lowest log level; only errors which will end the program will be propogated.
+	// CRITICAL is the lowest log level; only errors which will end the program will be propagated.
 	CRITICAL LogLevel = -1
 	// ERROR is for errors that are not fatal but lead to troubling behavior.
 	ERROR = 0
@@ -58,7 +58,7 @@ func ParseLevel(s string) (LogLevel, error) {
 	case "WARNING", "1", "W":
 		return WARNING, nil
 	case "NOTICE", "2", "N":
-		return INFO, nil
+		return NOTICE, nil
 	case "INFO", "3", "I":
 		return INFO, nil
 	case "DEBUG", "4", "D":
@@ -66,7 +66,7 @@ func ParseLevel(s string) (LogLevel, error) {
 	case "TRACE", "5", "T":
 		return TRACE, nil
 	}
-	return CRITICAL, fmt.Errorf("couldn't parse log level %s", s)
+	return CRITICAL, errors.New("couldn't parse log level " + s)
 }
 
 type repoLogger map[string]*packageLogger
@@ -79,7 +79,7 @@ type LogEntry interface {
 }
 
 type loggerStruct struct {
-	lock      sync.Mutex
+	sync.Mutex
 	repoMap   map[string]repoLogger
 	formatter Formatter
 }
@@ -87,13 +87,21 @@ type loggerStruct struct {
 // logger is the global logger
 var logger = new(loggerStruct)
 
+// SetGlobalLogLevel sets the log level for all packages in all repositories
+// registered with capnslog.
+func SetGlobalLogLevel(l LogLevel) {
+	for _, r := range logger.repoMap {
+		r.SetRepoLogLevel(l)
+	}
+}
+
 // RepoLogger may return the handle to the repository's set of packages' loggers.
 func RepoLogger(repo string) (repoLogger, error) {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
+	logger.Lock()
+	defer logger.Unlock()
 	r, ok := logger.repoMap[repo]
 	if !ok {
-		return nil, fmt.Errorf("no packages registered for repo %s", repo)
+		return nil, errors.New("no packages registered for repo " + repo)
 	}
 	return r, nil
 }
@@ -107,10 +115,10 @@ func MustRepoLogger(repo string) repoLogger {
 	return r
 }
 
-// SetLogLevel sets the log level for all packages in the repository.
-func (r repoLogger) SetGlobalLogLevel(l LogLevel) {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
+// SetGlobalLogLevel sets the log level for all packages in the repository.
+func (r repoLogger) SetRepoLogLevel(l LogLevel) {
+	logger.Lock()
+	defer logger.Unlock()
 	for _, v := range r {
 		v.level = l
 	}
@@ -124,7 +132,7 @@ func (r repoLogger) ParseLogLevelConfig(conf string) (map[string]LogLevel, error
 	for _, setstring := range setlist {
 		setting := strings.Split(setstring, "=")
 		if len(setting) != 2 {
-			continue
+			return nil, errors.New("oddly structured `pkg=level` option: " + setstring)
 		}
 		l, err := ParseLevel(setting[1])
 		if err != nil {
@@ -135,12 +143,16 @@ func (r repoLogger) ParseLogLevelConfig(conf string) (map[string]LogLevel, error
 	return out, nil
 }
 
+// SetLogLevel takes a map of package names within a repository to their desired
+// loglevel, and sets the levels appropriately. Unknown packages are ignored.
+// "*" is a special package name that corresponds to all packages, and will be
+// processed first.
 func (r repoLogger) SetLogLevel(m map[string]LogLevel) {
 	if l, ok := m["*"]; ok {
-		r.SetGlobalLogLevel(l)
+		r.SetRepoLogLevel(l)
 	}
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
+	logger.Lock()
+	defer logger.Unlock()
 	for k, v := range m {
 		l, ok := r[k]
 		if !ok {
@@ -152,16 +164,16 @@ func (r repoLogger) SetLogLevel(m map[string]LogLevel) {
 
 // SetFormatter sets the formatting function for all logs.
 func SetFormatter(f Formatter) {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
+	logger.Lock()
+	defer logger.Unlock()
 	logger.formatter = f
 }
 
 // NewPackageLogger creates a package logger object.
 // This should be defined as a global var in your package, referencing your repo.
 func NewPackageLogger(repo string, pkg string) (p *packageLogger) {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
+	logger.Lock()
+	defer logger.Unlock()
 	if logger.repoMap == nil {
 		logger.repoMap = make(map[string]repoLogger)
 	}

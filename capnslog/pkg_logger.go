@@ -13,8 +13,8 @@ type packageLogger struct {
 const calldepth = 3
 
 func (p *packageLogger) internalLog(depth int, inLevel LogLevel, entries ...LogEntry) {
-	logger.lock.Lock()
-	defer logger.lock.Unlock()
+	logger.Lock()
+	defer logger.Unlock()
 	if logger.formatter != nil {
 		logger.formatter.Format(p.pkg, inLevel, depth+1, entries...)
 	}
@@ -25,6 +25,7 @@ func (p *packageLogger) LevelAt(l LogLevel) bool {
 }
 
 // log stdlib compatibility
+
 func (p *packageLogger) Println(args ...interface{}) {
 	if p.level < INFO {
 		return
@@ -73,6 +74,7 @@ func (p *packageLogger) Fatal(args ...interface{}) {
 }
 
 // Error Functions
+
 func (p *packageLogger) Errorf(format string, args ...interface{}) {
 	if p.level < ERROR {
 		return
@@ -88,6 +90,7 @@ func (p *packageLogger) Error(entries ...LogEntry) {
 }
 
 // Warning Functions
+
 func (p *packageLogger) Warningf(format string, args ...interface{}) {
 	if p.level < WARNING {
 		return
@@ -103,6 +106,7 @@ func (p *packageLogger) Warning(entries ...LogEntry) {
 }
 
 // Notice Functions
+
 func (p *packageLogger) Noticef(format string, args ...interface{}) {
 	if p.level < NOTICE {
 		return
@@ -118,6 +122,7 @@ func (p *packageLogger) Notice(entries ...LogEntry) {
 }
 
 // Info Functions
+
 func (p *packageLogger) Infof(format string, args ...interface{}) {
 	if p.level < INFO {
 		return
@@ -133,6 +138,7 @@ func (p *packageLogger) Info(entries ...LogEntry) {
 }
 
 // Debug Functions
+
 func (p *packageLogger) Debugf(format string, args ...interface{}) {
 	if p.level < DEBUG {
 		return
@@ -148,6 +154,7 @@ func (p *packageLogger) Debug(entries ...LogEntry) {
 }
 
 // Trace Functions
+
 func (p *packageLogger) Tracef(format string, args ...interface{}) {
 	if p.level < TRACE {
 		return

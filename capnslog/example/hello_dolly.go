@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/coreos/pkg/capnslog"
 	oldlog "log"
 	"os"
+
+	"github.com/coreos/pkg/capnslog"
 )
 
 var log = capnslog.NewPackageLogger("github.com/coreos/pkg/capnslog/cmd", "main")
@@ -31,8 +32,8 @@ func main() {
 	dlog.Tracef("I can tell, Dolly")
 
 	// We also have control over the built-in "log" package.
+	capnslog.SetGlobalLogLevel(capnslog.INFO)
 	ol := capnslog.MustRepoLogger("log")
-	ol.SetGlobalLogLevel(capnslog.INFO)
 	oldlog.Println("You're still glowin', you're still crowin', you're still lookin' strong")
 	log.Fatalf("Dolly'll never go away again")
 }
