@@ -21,7 +21,9 @@ type StringFormatter struct {
 }
 
 func (s *StringFormatter) Format(pkg string, _ LogLevel, _ int, entries ...LogEntry) {
-	s.w.WriteString(pkg)
+	if pkg != "" {
+		s.w.WriteString(pkg + ":")
+	}
 	endsInNL := false
 	for _, v := range entries {
 		s.w.WriteByte(' ')

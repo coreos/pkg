@@ -33,7 +33,6 @@ func main() {
 
 	// We also have control over the built-in "log" package.
 	capnslog.SetGlobalLogLevel(capnslog.INFO)
-	ol := capnslog.MustRepoLogger("log")
 	oldlog.Println("You're still glowin', you're still crowin', you're still lookin' strong")
 	log.Fatalf("Dolly'll never go away again")
 }

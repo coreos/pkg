@@ -90,8 +90,10 @@ var logger = new(loggerStruct)
 // SetGlobalLogLevel sets the log level for all packages in all repositories
 // registered with capnslog.
 func SetGlobalLogLevel(l LogLevel) {
+	logger.Lock()
+	defer logger.Unlock()
 	for _, r := range logger.repoMap {
-		r.SetRepoLogLevel(l)
+		r.setRepoLogLevelInternal(l)
 	}
 }
 
@@ -115,10 +117,14 @@ func MustRepoLogger(repo string) repoLogger {
 	return r
 }
 
-// SetGlobalLogLevel sets the log level for all packages in the repository.
+// SetRepoLogLevel sets the log level for all packages in the repository.
 func (r repoLogger) SetRepoLogLevel(l LogLevel) {
 	logger.Lock()
 	defer logger.Unlock()
+	r.setRepoLogLevelInternal(l)
+}
+
+func (r repoLogger) setRepoLogLevelInternal(l LogLevel) {
 	for _, v := range r {
 		v.level = l
 	}
@@ -148,11 +154,11 @@ func (r repoLogger) ParseLogLevelConfig(conf string) (map[string]LogLevel, error
 // "*" is a special package name that corresponds to all packages, and will be
 // processed first.
 func (r repoLogger) SetLogLevel(m map[string]LogLevel) {
-	if l, ok := m["*"]; ok {
-		r.SetRepoLogLevel(l)
-	}
 	logger.Lock()
 	defer logger.Unlock()
+	if l, ok := m["*"]; ok {
+		r.setRepoLogLevelInternal(l)
+	}
 	for k, v := range m {
 		l, ok := r[k]
 		if !ok {
