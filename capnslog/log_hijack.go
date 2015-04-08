@@ -13,7 +13,7 @@ func init() {
 }
 
 type packageWriter struct {
-	pl *packageLogger
+	pl *PackageLogger
 }
 
 func (p packageWriter) Write(b []byte) (int, error) {
