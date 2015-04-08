@@ -69,7 +69,7 @@ func ParseLevel(s string) (LogLevel, error) {
 	return CRITICAL, errors.New("couldn't parse log level " + s)
 }
 
-type repoLogger map[string]*packageLogger
+type RepoLogger map[string]*PackageLogger
 
 // LogEntry is the generic interface for things which can be logged.
 // Implementing the single method LogString() on your objects allows you to
@@ -80,7 +80,7 @@ type LogEntry interface {
 
 type loggerStruct struct {
 	sync.Mutex
-	repoMap   map[string]repoLogger
+	repoMap   map[string]RepoLogger
 	formatter Formatter
 }
 
@@ -97,8 +97,8 @@ func SetGlobalLogLevel(l LogLevel) {
 	}
 }
 
-// RepoLogger may return the handle to the repository's set of packages' loggers.
-func RepoLogger(repo string) (repoLogger, error) {
+// GetRepoLogger may return the handle to the repository's set of packages' loggers.
+func GetRepoLogger(repo string) (RepoLogger, error) {
 	logger.Lock()
 	defer logger.Unlock()
 	r, ok := logger.repoMap[repo]
@@ -109,8 +109,8 @@ func RepoLogger(repo string) (repoLogger, error) {
 }
 
 // MustRepoLogger returns the handle to the repository's packages' loggers.
-func MustRepoLogger(repo string) repoLogger {
-	r, err := RepoLogger(repo)
+func MustRepoLogger(repo string) RepoLogger {
+	r, err := GetRepoLogger(repo)
 	if err != nil {
 		panic(err)
 	}
@@ -118,13 +118,13 @@ func MustRepoLogger(repo string) repoLogger {
 }
 
 // SetRepoLogLevel sets the log level for all packages in the repository.
-func (r repoLogger) SetRepoLogLevel(l LogLevel) {
+func (r RepoLogger) SetRepoLogLevel(l LogLevel) {
 	logger.Lock()
 	defer logger.Unlock()
 	r.setRepoLogLevelInternal(l)
 }
 
-func (r repoLogger) setRepoLogLevelInternal(l LogLevel) {
+func (r RepoLogger) setRepoLogLevelInternal(l LogLevel) {
 	for _, v := range r {
 		v.level = l
 	}
@@ -132,7 +132,7 @@ func (r repoLogger) setRepoLogLevelInternal(l LogLevel) {
 
 // ParseLogLevelConfig parses a comma-separated string of "package=loglevel", in
 // order, and returns a map of the results, for use in SetLogLevel.
-func (r repoLogger) ParseLogLevelConfig(conf string) (map[string]LogLevel, error) {
+func (r RepoLogger) ParseLogLevelConfig(conf string) (map[string]LogLevel, error) {
 	setlist := strings.Split(conf, ",")
 	out := make(map[string]LogLevel)
 	for _, setstring := range setlist {
@@ -153,7 +153,7 @@ func (r repoLogger) ParseLogLevelConfig(conf string) (map[string]LogLevel, error
 // loglevel, and sets the levels appropriately. Unknown packages are ignored.
 // "*" is a special package name that corresponds to all packages, and will be
 // processed first.
-func (r repoLogger) SetLogLevel(m map[string]LogLevel) {
+func (r RepoLogger) SetLogLevel(m map[string]LogLevel) {
 	logger.Lock()
 	defer logger.Unlock()
 	if l, ok := m["*"]; ok {
@@ -177,20 +177,20 @@ func SetFormatter(f Formatter) {
 
 // NewPackageLogger creates a package logger object.
 // This should be defined as a global var in your package, referencing your repo.
-func NewPackageLogger(repo string, pkg string) (p *packageLogger) {
+func NewPackageLogger(repo string, pkg string) (p *PackageLogger) {
 	logger.Lock()
 	defer logger.Unlock()
 	if logger.repoMap == nil {
-		logger.repoMap = make(map[string]repoLogger)
+		logger.repoMap = make(map[string]RepoLogger)
 	}
 	r, rok := logger.repoMap[repo]
 	if !rok {
-		logger.repoMap[repo] = make(repoLogger)
+		logger.repoMap[repo] = make(RepoLogger)
 		r = logger.repoMap[repo]
 	}
 	p, pok := r[pkg]
 	if !pok {
-		r[pkg] = &packageLogger{
+		r[pkg] = &PackageLogger{
 			pkg:   pkg,
 			level: INFO,
 		}

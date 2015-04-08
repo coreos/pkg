@@ -5,14 +5,14 @@ import (
 	"os"
 )
 
-type packageLogger struct {
+type PackageLogger struct {
 	pkg   string
 	level LogLevel
 }
 
 const calldepth = 3
 
-func (p *packageLogger) internalLog(depth int, inLevel LogLevel, entries ...LogEntry) {
+func (p *PackageLogger) internalLog(depth int, inLevel LogLevel, entries ...LogEntry) {
 	logger.Lock()
 	defer logger.Unlock()
 	if logger.formatter != nil {
@@ -20,27 +20,27 @@ func (p *packageLogger) internalLog(depth int, inLevel LogLevel, entries ...LogE
 	}
 }
 
-func (p *packageLogger) LevelAt(l LogLevel) bool {
+func (p *PackageLogger) LevelAt(l LogLevel) bool {
 	return p.level >= l
 }
 
 // log stdlib compatibility
 
-func (p *packageLogger) Println(args ...interface{}) {
+func (p *PackageLogger) Println(args ...interface{}) {
 	if p.level < INFO {
 		return
 	}
 	p.internalLog(calldepth, INFO, BaseLogEntry(fmt.Sprintln(args...)))
 }
 
-func (p *packageLogger) Printf(format string, args ...interface{}) {
+func (p *PackageLogger) Printf(format string, args ...interface{}) {
 	if p.level < INFO {
 		return
 	}
 	p.internalLog(calldepth, INFO, BaseLogEntry(fmt.Sprintf(format, args...)))
 }
 
-func (p *packageLogger) Print(args ...interface{}) {
+func (p *PackageLogger) Print(args ...interface{}) {
 	if p.level < INFO {
 		return
 	}
@@ -49,25 +49,25 @@ func (p *packageLogger) Print(args ...interface{}) {
 
 // Panic and fatal
 
-func (p *packageLogger) Panicf(format string, args ...interface{}) {
+func (p *PackageLogger) Panicf(format string, args ...interface{}) {
 	s := fmt.Sprintf(format, args...)
 	p.internalLog(calldepth, CRITICAL, BaseLogEntry(s))
 	panic(s)
 }
 
-func (p *packageLogger) Panic(args ...interface{}) {
+func (p *PackageLogger) Panic(args ...interface{}) {
 	s := fmt.Sprint(args...)
 	p.internalLog(calldepth, CRITICAL, BaseLogEntry(s))
 	panic(s)
 }
 
-func (p *packageLogger) Fatalf(format string, args ...interface{}) {
+func (p *PackageLogger) Fatalf(format string, args ...interface{}) {
 	s := fmt.Sprintf(format, args...)
 	p.internalLog(calldepth, CRITICAL, BaseLogEntry(s))
 	os.Exit(1)
 }
 
-func (p *packageLogger) Fatal(args ...interface{}) {
+func (p *PackageLogger) Fatal(args ...interface{}) {
 	s := fmt.Sprint(args...)
 	p.internalLog(calldepth, CRITICAL, BaseLogEntry(s))
 	os.Exit(1)
@@ -75,14 +75,14 @@ func (p *packageLogger) Fatal(args ...interface{}) {
 
 // Error Functions
 
-func (p *packageLogger) Errorf(format string, args ...interface{}) {
+func (p *PackageLogger) Errorf(format string, args ...interface{}) {
 	if p.level < ERROR {
 		return
 	}
 	p.internalLog(calldepth, ERROR, BaseLogEntry(fmt.Sprintf(format, args...)))
 }
 
-func (p *packageLogger) Error(entries ...LogEntry) {
+func (p *PackageLogger) Error(entries ...LogEntry) {
 	if p.level < ERROR {
 		return
 	}
@@ -91,14 +91,14 @@ func (p *packageLogger) Error(entries ...LogEntry) {
 
 // Warning Functions
 
-func (p *packageLogger) Warningf(format string, args ...interface{}) {
+func (p *PackageLogger) Warningf(format string, args ...interface{}) {
 	if p.level < WARNING {
 		return
 	}
 	p.internalLog(calldepth, WARNING, BaseLogEntry(fmt.Sprintf(format, args...)))
 }
 
-func (p *packageLogger) Warning(entries ...LogEntry) {
+func (p *PackageLogger) Warning(entries ...LogEntry) {
 	if p.level < WARNING {
 		return
 	}
@@ -107,14 +107,14 @@ func (p *packageLogger) Warning(entries ...LogEntry) {
 
 // Notice Functions
 
-func (p *packageLogger) Noticef(format string, args ...interface{}) {
+func (p *PackageLogger) Noticef(format string, args ...interface{}) {
 	if p.level < NOTICE {
 		return
 	}
 	p.internalLog(calldepth, NOTICE, BaseLogEntry(fmt.Sprintf(format, args...)))
 }
 
-func (p *packageLogger) Notice(entries ...LogEntry) {
+func (p *PackageLogger) Notice(entries ...LogEntry) {
 	if p.level < NOTICE {
 		return
 	}
@@ -123,14 +123,14 @@ func (p *packageLogger) Notice(entries ...LogEntry) {
 
 // Info Functions
 
-func (p *packageLogger) Infof(format string, args ...interface{}) {
+func (p *PackageLogger) Infof(format string, args ...interface{}) {
 	if p.level < INFO {
 		return
 	}
 	p.internalLog(calldepth, INFO, BaseLogEntry(fmt.Sprintf(format, args...)))
 }
 
-func (p *packageLogger) Info(entries ...LogEntry) {
+func (p *PackageLogger) Info(entries ...LogEntry) {
 	if p.level < INFO {
 		return
 	}
@@ -139,14 +139,14 @@ func (p *packageLogger) Info(entries ...LogEntry) {
 
 // Debug Functions
 
-func (p *packageLogger) Debugf(format string, args ...interface{}) {
+func (p *PackageLogger) Debugf(format string, args ...interface{}) {
 	if p.level < DEBUG {
 		return
 	}
 	p.internalLog(calldepth, DEBUG, BaseLogEntry(fmt.Sprintf(format, args...)))
 }
 
-func (p *packageLogger) Debug(entries ...LogEntry) {
+func (p *PackageLogger) Debug(entries ...LogEntry) {
 	if p.level < DEBUG {
 		return
 	}
@@ -155,14 +155,14 @@ func (p *packageLogger) Debug(entries ...LogEntry) {
 
 // Trace Functions
 
-func (p *packageLogger) Tracef(format string, args ...interface{}) {
+func (p *PackageLogger) Tracef(format string, args ...interface{}) {
 	if p.level < TRACE {
 		return
 	}
 	p.internalLog(calldepth, TRACE, BaseLogEntry(fmt.Sprintf(format, args...)))
 }
 
-func (p *packageLogger) Trace(entries ...LogEntry) {
+func (p *PackageLogger) Trace(entries ...LogEntry) {
 	if p.level < TRACE {
 		return
 	}
