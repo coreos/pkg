@@ -25,3 +25,12 @@ func WriteJSONResponse(w http.ResponseWriter, code int, resp interface{}) error 
 	}
 	return nil
 }
+
+func WriteError(w http.ResponseWriter, code int, msg string) error {
+	e := struct {
+		Error string `json:"error"`
+	}{
+		Error: msg,
+	}
+	return WriteJSONResponse(w, code, e)
+}
