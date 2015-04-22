@@ -15,7 +15,7 @@ COVER=${COVER:-"-cover"}
 source ./build
 
 TESTABLE="cryptoutil flagutil timeutil netutil yamlutil httputil health"
-FORMATTABLE="$TESTABLE log"
+FORMATTABLE="$TESTABLE capnslog"
 
 # user has not provided PKG override
 if [ -z "$PKG" ]; then
