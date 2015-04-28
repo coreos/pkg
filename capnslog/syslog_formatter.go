@@ -43,3 +43,6 @@ func (s *syslogFormatter) Format(pkg string, l LogLevel, _ int, entries ...LogEn
 		}
 	}
 }
+
+func (s *syslogFormatter) Flush() {
+}

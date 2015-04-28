@@ -12,7 +12,7 @@ var dlog = capnslog.NewPackageLogger("github.com/coreos/pkg/capnslog/cmd", "doll
 
 func main() {
 	rl := capnslog.MustRepoLogger("github.com/coreos/pkg/capnslog/cmd")
-	capnslog.SetFormatter(capnslog.NewGlogFormatter(os.Stderr))
+	capnslog.SetFormatter(capnslog.NewStringFormatter(os.Stderr))
 
 	// We can parse the log level configs from the command line
 	if len(os.Args) > 1 {

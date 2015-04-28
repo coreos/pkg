@@ -168,3 +168,9 @@ func (p *PackageLogger) Trace(entries ...LogEntry) {
 	}
 	p.internalLog(calldepth, TRACE, entries...)
 }
+
+func (p *PackageLogger) Flush() {
+	logger.Lock()
+	defer logger.Unlock()
+	logger.formatter.Flush()
+}
