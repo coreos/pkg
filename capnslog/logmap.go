@@ -71,13 +71,6 @@ func ParseLevel(s string) (LogLevel, error) {
 
 type RepoLogger map[string]*PackageLogger
 
-// LogEntry is the generic interface for things which can be logged.
-// Implementing the single method LogString() on your objects allows you to
-// format them for logs/debugging as necessary.
-type LogEntry interface {
-	LogString() string
-}
-
 type loggerStruct struct {
 	sync.Mutex
 	repoMap   map[string]RepoLogger
