@@ -48,6 +48,39 @@ func (l LogLevel) Char() string {
 	}
 }
 
+// String returns a multi-character representation of the log level.
+func (l LogLevel) String() string {
+	switch l {
+	case CRITICAL:
+		return "CRITICAL"
+	case ERROR:
+		return "ERROR"
+	case WARNING:
+		return "WARNING"
+	case NOTICE:
+		return "NOTICE"
+	case INFO:
+		return "INFO"
+	case DEBUG:
+		return "DEBUG"
+	case TRACE:
+		return "TRACE"
+	default:
+		panic("Unhandled loglevel")
+	}
+}
+
+// Update using the given string value. Fulfills the flag.Value interface.
+func (l *LogLevel) Set(s string) error {
+	value, err := ParseLevel(s)
+	if err != nil {
+		return err
+	}
+
+	*l = value
+	return nil
+}
+
 // ParseLevel translates some potential loglevel strings into their corresponding levels.
 func ParseLevel(s string) (LogLevel, error) {
 	switch s {
