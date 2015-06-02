@@ -30,15 +30,15 @@ func (p *PackageLogger) LevelAt(l LogLevel) bool {
 // log stdlib compatibility
 
 func (p *PackageLogger) Println(args ...interface{}) {
-	p.internalLog(calldepth, INFO, BaseLogEntry(fmt.Sprintln(args...)))
+	p.internalLog(calldepth, INFO, fmt.Sprintln(args...))
 }
 
 func (p *PackageLogger) Printf(format string, args ...interface{}) {
-	p.internalLog(calldepth, INFO, BaseLogEntry(fmt.Sprintf(format, args...)))
+	p.internalLog(calldepth, INFO, fmt.Sprintf(format, args...))
 }
 
 func (p *PackageLogger) Print(args ...interface{}) {
-	p.internalLog(calldepth, INFO, BaseLogEntry(fmt.Sprint(args...)))
+	p.internalLog(calldepth, INFO, fmt.Sprint(args...))
 }
 
 // Panic and fatal
