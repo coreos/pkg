@@ -11,19 +11,19 @@ type LogLevel int8
 
 const (
 	// CRITICAL is the lowest log level; only errors which will end the program will be propagated.
-	CRITICAL LogLevel = -1
+	CRITICAL LogLevel = iota - 1
 	// ERROR is for errors that are not fatal but lead to troubling behavior.
-	ERROR = 0
+	ERROR
 	// WARNING is for errors which are not fatal and not errors, but are unusual. Often sourced from misconfigurations.
-	WARNING = 1
+	WARNING
 	// NOTICE is for normal but significant conditions.
-	NOTICE = 2
+	NOTICE
 	// INFO is a log level for common, everyday log updates.
-	INFO = 3
+	INFO
 	// DEBUG is the default hidden level for more verbose updates about internal processes.
-	DEBUG = 4
+	DEBUG
 	// TRACE is for (potentially) call by call tracing of programs.
-	TRACE = 5
+	TRACE
 )
 
 // Char returns a single-character representation of the log level.
