@@ -27,6 +27,16 @@ func (p *PackageLogger) LevelAt(l LogLevel) bool {
 	return p.level >= l
 }
 
+// Log a formatted string at any level between ERROR and TRACE
+func (p *PackageLogger) Logf(l LogLevel, format string, args ...interface{}) {
+	p.internalLog(calldepth, l, fmt.Sprintf(format, args...))
+}
+
+// Log a message at any level between ERROR and TRACE
+func (p *PackageLogger) Log(l LogLevel, args ...interface{}) {
+	p.internalLog(calldepth, l, fmt.Sprint(args...))
+}
+
 // log stdlib compatibility
 
 func (p *PackageLogger) Println(args ...interface{}) {
