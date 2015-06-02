@@ -191,9 +191,3 @@ func NewPackageLogger(repo string, pkg string) (p *PackageLogger) {
 	}
 	return
 }
-
-type BaseLogEntry string
-
-func (b BaseLogEntry) LogString() string {
-	return string(b)
-}
