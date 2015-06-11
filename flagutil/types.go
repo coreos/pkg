@@ -2,7 +2,9 @@ package flagutil
 
 import (
 	"errors"
+	"fmt"
 	"net"
+	"strings"
 )
 
 // IPv4Flag parses a string into a net.IP after asserting that it
@@ -26,4 +28,17 @@ func (f *IPv4Flag) Set(v string) error {
 
 func (f *IPv4Flag) String() string {
 	return f.val.String()
+}
+
+// StringSliceFlag parses a comma-delimited list of strings into
+// a []string. This type implements the flag.Value interface.
+type StringSliceFlag []string
+
+func (ss *StringSliceFlag) String() string {
+	return fmt.Sprintf("%+v", *ss)
+}
+
+func (ss *StringSliceFlag) Set(v string) error {
+	*ss = strings.Split(v, ",")
+	return nil
 }

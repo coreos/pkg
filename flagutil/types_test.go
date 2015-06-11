@@ -1,6 +1,9 @@
 package flagutil
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestIPv4FlagSetInvalidArgument(t *testing.T) {
 	tests := []string{
@@ -28,6 +31,27 @@ func TestIPv4FlagSetValidArgument(t *testing.T) {
 		var f IPv4Flag
 		if err := f.Set(tt); err != nil {
 			t.Errorf("case %d: err=%v", i, err)
+		}
+	}
+}
+
+func TestStringSliceFlag(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		{input: "", want: []string{""}},
+		{input: "foo", want: []string{"foo"}},
+		{input: "foo,bar", want: []string{"foo", "bar"}},
+	}
+
+	for i, tt := range tests {
+		var f StringSliceFlag
+		if err := f.Set(tt.input); err != nil {
+			t.Errorf("case %d: err=%v", i, err)
+		}
+		if !reflect.DeepEqual(tt.want, []string(f)) {
+			t.Errorf("case %d: want=%v got=%v", i, tt.want, f)
 		}
 	}
 }
