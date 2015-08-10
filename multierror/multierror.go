@@ -1,3 +1,7 @@
+// Package multierror wraps a slice of errors and implements the error interface.
+// This can be used to collect a bunch of errors (such as during form validation)
+// and then return them all together as a single error. To see usage examples
+// refer to the unit tests.
 package multierror
 
 import (
