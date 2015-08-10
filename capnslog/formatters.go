@@ -38,10 +38,9 @@ type StringFormatter struct {
 }
 
 func (s *StringFormatter) Format(pkg string, l LogLevel, i int, entries ...interface{}) {
-	now := time.Now()
-	y, m, d := now.Date()
-	h, min, sec := now.Clock()
-	s.w.WriteString(fmt.Sprintf("%d/%02d/%d %02d:%02d:%02d ", y, m, d, h, min, sec))
+	now := time.Now().UTC()
+	s.w.WriteString(now.Format(time.RFC3339))
+	s.w.WriteByte(' ')
 	s.writeEntries(pkg, l, i, entries...)
 }
 
