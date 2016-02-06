@@ -27,17 +27,19 @@ type PackageLogger struct {
 const calldepth = 2
 
 func (p *PackageLogger) internalLog(depth int, inLevel LogLevel, entries ...interface{}) {
+	logger.Lock()
+	defer logger.Unlock()
 	if inLevel != CRITICAL && p.level < inLevel {
 		return
 	}
-	logger.Lock()
-	defer logger.Unlock()
 	if logger.formatter != nil {
 		logger.formatter.Format(p.pkg, inLevel, depth+1, entries...)
 	}
 }
 
 func (p *PackageLogger) LevelAt(l LogLevel) bool {
+	logger.Lock()
+	defer logger.Unlock()
 	return p.level >= l
 }
 
