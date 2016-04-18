@@ -29,7 +29,7 @@ type Formatter interface {
 	Flush()
 }
 
-func NewStringFormatter(w io.Writer) *StringFormatter {
+func NewStringFormatter(w io.Writer) Formatter {
 	return &StringFormatter{
 		w: bufio.NewWriter(w),
 	}
