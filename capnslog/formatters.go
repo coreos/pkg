@@ -135,3 +135,23 @@ func (lf *LogFormatter) Format(pkg string, _ LogLevel, _ int, entries ...interfa
 func (lf *LogFormatter) Flush() {
 	// noop
 }
+
+// NilFormatter is a no-op log formatter that does nothing.
+type NilFormatter struct {
+}
+
+// NewNilFormatter is a helper to produce a new LogFormatter struct. It logs no
+// messages so that you can cause part of your logging to be silent.
+func NewNilFormatter() Formatter {
+	return &NilFormatter{}
+}
+
+// Format does nothing.
+func (_ *NilFormatter) Format(_ string, _ LogLevel, _ int, _ ...interface{}) {
+	// noop
+}
+
+// Flush is included so that the interface is complete, but is a no-op.
+func (_ *NilFormatter) Flush() {
+	// noop
+}
