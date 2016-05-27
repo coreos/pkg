@@ -22,11 +22,25 @@ import (
 )
 
 type copyReader struct {
-	reader  io.Reader
-	current int64
-	total   int64
-	done    bool
-	pb      *ProgressBar
+	reader   io.Reader
+	current  int64
+	total    int64
+	done     bool
+	doneLock sync.Mutex
+	pb       *ProgressBar
+}
+
+func (cr *copyReader) getDone() bool {
+	cr.doneLock.Lock()
+	val := cr.done
+	cr.doneLock.Unlock()
+	return val
+}
+
+func (cr *copyReader) setDone(val bool) {
+	cr.doneLock.Lock()
+	cr.done = val
+	cr.doneLock.Unlock()
 }
 
 func (cr *copyReader) Read(p []byte) (int, error) {
@@ -37,7 +51,7 @@ func (cr *copyReader) Read(p []byte) (int, error) {
 		err = err1
 	}
 	if err != nil {
-		cr.done = true
+		cr.setDone(true)
 	}
 	return n, err
 }
@@ -128,7 +142,7 @@ func (cpp *CopyProgressPrinter) PrintAndWait(printTo io.Writer, printInterval ti
 
 		allDone := true
 		for _, r := range readers {
-			allDone = allDone && r.done
+			allDone = allDone && r.getDone()
 		}
 		if allDone && len(readers) > 0 {
 			return nil
