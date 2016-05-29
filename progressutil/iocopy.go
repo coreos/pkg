@@ -50,9 +50,6 @@ func (cr *copyReader) Read(p []byte) (int, error) {
 	if err == nil {
 		err = err1
 	}
-	if err != nil {
-		cr.setDone(true)
-	}
 	return n, err
 }
 
@@ -105,6 +102,7 @@ func (cpp *CopyProgressPrinter) AddCopy(reader io.Reader, name string, size int6
 			cpp.errors = append(cpp.errors, err)
 			cpp.lock.Unlock()
 		}
+		cr.setDone(true)
 	}()
 }
 
@@ -137,7 +135,6 @@ func (cpp *CopyProgressPrinter) PrintAndWait(printTo io.Writer, printInterval ti
 			if err != nil {
 				return err
 			}
-		} else {
 		}
 
 		allDone := true
@@ -145,6 +142,15 @@ func (cpp *CopyProgressPrinter) PrintAndWait(printTo io.Writer, printInterval ti
 			allDone = allDone && r.getDone()
 		}
 		if allDone && len(readers) > 0 {
+			// We still need to check for errors again, as one may
+			// have occurred between when we first checked and when
+			// the readers were marked as done
+			cpp.lock.Lock()
+			errors = cpp.errors
+			cpp.lock.Unlock()
+			if len(errors) > 0 {
+				return errors[0]
+			}
 			return nil
 		}
 
