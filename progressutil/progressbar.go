@@ -191,14 +191,14 @@ func (pbp *ProgressBarPrinter) Print(printTo io.Writer) (bool, error) {
 		}
 	}
 
-	allDone := false
+	allDone := true
 	for _, bar := range bars {
 		if isTerminal(printTo) {
 			bar.printToTerminal(printTo, numColumns, pbp.PadToBeEven, pbp.maxBefore, pbp.maxAfter)
 		} else {
 			bar.printToNonTerminal(printTo)
 		}
-		allDone = allDone || bar.GetCurrentProgress() == 1
+		allDone = allDone && bar.GetCurrentProgress() == 1
 	}
 
 	pbp.numLinesInLastPrint = len(bars)
