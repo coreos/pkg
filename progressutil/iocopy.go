@@ -135,7 +135,6 @@ func (cpp *CopyProgressPrinter) PrintAndWait(printTo io.Writer, printInterval ti
 			if err != nil {
 				return err
 			}
-		} else {
 		}
 
 		allDone := true
