@@ -142,6 +142,15 @@ func (cpp *CopyProgressPrinter) PrintAndWait(printTo io.Writer, printInterval ti
 			allDone = allDone && r.getDone()
 		}
 		if allDone && len(readers) > 0 {
+			// We still need to check for errors again, as one may
+			// have occurred between when we first checked and when
+			// the readers were marked as done
+			cpp.lock.Lock()
+			errors = cpp.errors
+			cpp.lock.Unlock()
+			if len(errors) > 0 {
+				return errors[0]
+			}
 			return nil
 		}
 
