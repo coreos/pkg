@@ -50,9 +50,6 @@ func (cr *copyReader) Read(p []byte) (int, error) {
 	if err == nil {
 		err = err1
 	}
-	if err != nil {
-		cr.setDone(true)
-	}
 	return n, err
 }
 
@@ -105,6 +102,7 @@ func (cpp *CopyProgressPrinter) AddCopy(reader io.Reader, name string, size int6
 			cpp.errors = append(cpp.errors, err)
 			cpp.lock.Unlock()
 		}
+		cr.setDone(true)
 	}()
 }
 
