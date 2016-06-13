@@ -76,11 +76,7 @@ type PrettyFormatter struct {
 }
 
 func (c *PrettyFormatter) Format(pkg string, l LogLevel, depth int, entries ...interface{}) {
-	now := time.Now()
-	ts := now.Format("2006-01-02 15:04:05")
-	c.w.WriteString(ts)
-	ms := now.Nanosecond() / 1000
-	c.w.WriteString(fmt.Sprintf(".%06d", ms))
+	c.w.WriteString(time.Now().String()[:26])
 	if c.debug {
 		_, file, line, ok := runtime.Caller(depth) // It's always the same number of frames to the user's call.
 		if !ok {
