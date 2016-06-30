@@ -13,14 +13,13 @@
 // limitations under the License.
 
 // Package dlopen provides some convenience functions to dlopen a library and
-// get its symbols. This file does not build on *bsd as dlopen functionality
-// on those platforms is included in libc.
+// get its symbols. This file is modified for use on *bsd platforms where
+// libdl's functionality is included in libc.
 
-// +build !freebsd,!netbsd,!openbsd
+// +build freebsd netbsd openbsd
 
 package dlopen
 
-// #cgo LDFLAGS: -ldl
 // #include <stdlib.h>
 // #include <dlfcn.h>
 import "C"
