@@ -16,7 +16,9 @@
 // get its symbols.
 package dlopen
 
-// #cgo LDFLAGS: -ldl
+// BSDs include dlopen functions in libc and do not have a separate libdl
+
+// #cgo !freebsd,!netbsd,!openbsd LDFLAGS: -ldl
 // #include <stdlib.h>
 // #include <dlfcn.h>
 import "C"
