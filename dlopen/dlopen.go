@@ -16,8 +16,6 @@
 // get its symbols. This file does not build on *bsd as dlopen functionality
 // on those platforms is included in libc.
 
-// +build !freebsd,!netbsd,!openbsd
-
 package dlopen
 
 // BSDs include dlopen functions in libc and do not have a separate libdl
