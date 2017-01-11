@@ -1,12 +1,12 @@
 #!/bin/bash -e
 #
 # Run all tests (not including functional)
-#   ./test
-#   ./test -v
+#   ./test.sh
+#   ./test.sh -v
 #
 # Run tests for one package
-#   PKG=./unit ./test
-#   PKG=ssh ./test
+#   PKG=./unit ./test.sh
+#   PKG=ssh ./test.sh
 #
 
 # Invoke ./cover for HTML output
