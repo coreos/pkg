@@ -12,7 +12,7 @@
 # Invoke ./cover for HTML output
 COVER=${COVER:-"-cover"}
 
-source ./build
+source ./build.sh
 
 TESTABLE="cryptoutil flagutil timeutil netutil yamlutil httputil health multierror dlopen progressutil"
 FORMATTABLE="$TESTABLE capnslog"
