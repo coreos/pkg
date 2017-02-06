@@ -1,18 +1,18 @@
 #!/bin/bash -e
 #
 # Run all tests (not including functional)
-#   ./test
-#   ./test -v
+#   ./test.sh
+#   ./test.sh -v
 #
 # Run tests for one package
-#   PKG=./unit ./test
-#   PKG=ssh ./test
+#   PKG=./unit ./test.sh
+#   PKG=ssh ./test.sh
 #
 
 # Invoke ./cover for HTML output
 COVER=${COVER:-"-cover"}
 
-source ./build
+source ./build.sh
 
 TESTABLE="cryptoutil flagutil timeutil netutil yamlutil httputil health multierror dlopen progressutil"
 FORMATTABLE="$TESTABLE capnslog"
