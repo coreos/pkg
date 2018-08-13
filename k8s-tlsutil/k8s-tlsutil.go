@@ -84,7 +84,7 @@ func NewSelfSignedCACertificate(cfg CertConfig, key *rsa.PrivateKey, validDurati
 		// 0 means default expiry of roughly 10 years from now
 		tmpl.NotAfter = now.Add(Duration365d * 10)
 	case validDuration < 0:
-		// < 0 indicates that the certificat has "no well-defined expiration
+		// < 0 indicates that the certificate has "no well-defined expiration
 		// date" as per rfc5280(4.1.2.5), and "SHOULD be assigned the
 		// GeneralizedTime value of 99991231235959Z"
 		tmpl.NotAfter = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
@@ -139,7 +139,7 @@ func NewSignedCertificate(cfg CertConfig, key *rsa.PrivateKey, caCert *x509.Cert
 		// 0 means default expiry of roughly 1 year from now
 		certTmpl.NotAfter = time.Now().Add(Duration365d)
 	case validDuration < 0:
-		// < 0 indicates that the certificat has "no well-defined expiration
+		// < 0 indicates that the certificate has "no well-defined expiration
 		// date" as per rfc5280(4.1.2.5), and "SHOULD be assigned the
 		// GeneralizedTime value of 99991231235959Z"
 		certTmpl.NotAfter = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
