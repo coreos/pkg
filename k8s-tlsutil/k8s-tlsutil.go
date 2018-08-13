@@ -67,11 +67,6 @@ func EncodeCertificatePEM(cert *x509.Certificate) []byte {
 func NewSelfSignedCACertificate(cfg CertConfig, key *rsa.PrivateKey, validDuration time.Duration) (*x509.Certificate, error) {
 	now := time.Now()
 
-	dur := Duration365d * 10
-	if validDuration != 0 {
-		dur = validDuration
-	}
-
 	tmpl := x509.Certificate{
 		SerialNumber: new(big.Int).SetInt64(0),
 		Subject: pkix.Name{
@@ -79,10 +74,22 @@ func NewSelfSignedCACertificate(cfg CertConfig, key *rsa.PrivateKey, validDurati
 			Organization: cfg.Organization,
 		},
 		NotBefore:             now,
-		NotAfter:              now.Add(dur),
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
 		IsCA: true,
+	}
+
+	switch {
+	case validDuration == 0:
+		// 0 means default expiry of roughly 10 years from now
+		tmpl.NotAfter = now.Add(Duration365d * 10)
+	case validDuration < 0:
+		// < 0 indicates that the certificat has "no well-defined expiration
+		// date" as per rfc5280(4.1.2.5), and "SHOULD be assigned the
+		// GeneralizedTime value of 99991231235959Z"
+		tmpl.NotAfter = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
+	default:
+		tmpl.NotAfter = now.Add(validDuration)
 	}
 
 	certDERBytes, err := x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, key.Public(), key)
@@ -114,11 +121,6 @@ func NewSignedCertificate(cfg CertConfig, key *rsa.PrivateKey, caCert *x509.Cert
 		return nil, err
 	}
 
-	dur := Duration365d
-	if validDuration != 0 {
-		dur = validDuration
-	}
-
 	certTmpl := x509.Certificate{
 		Subject: pkix.Name{
 			CommonName:   cfg.CommonName,
@@ -128,10 +130,23 @@ func NewSignedCertificate(cfg CertConfig, key *rsa.PrivateKey, caCert *x509.Cert
 		IPAddresses:  cfg.AltNames.IPs,
 		SerialNumber: serial,
 		NotBefore:    caCert.NotBefore,
-		NotAfter:     time.Now().Add(dur),
 		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 	}
+
+	switch {
+	case validDuration == 0:
+		// 0 means default expiry of roughly 1 year from now
+		certTmpl.NotAfter = time.Now().Add(Duration365d)
+	case validDuration < 0:
+		// < 0 indicates that the certificat has "no well-defined expiration
+		// date" as per rfc5280(4.1.2.5), and "SHOULD be assigned the
+		// GeneralizedTime value of 99991231235959Z"
+		certTmpl.NotAfter = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
+	default:
+		certTmpl.NotAfter = time.Now().Add(validDuration)
+	}
+
 	certDERBytes, err := x509.CreateCertificate(rand.Reader, &certTmpl, caCert, key.Public(), caKey)
 	if err != nil {
 		return nil, err
