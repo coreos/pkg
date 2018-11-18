@@ -61,6 +61,11 @@ func (p *PackageLogger) Log(l LogLevel, args ...interface{}) {
 	p.internalLog(calldepth, l, fmt.Sprint(args...))
 }
 
+// Log a message at any level and with a given caller depth. Useful for wrapping capnslog.
+func (p *PackageLogger) LogDepth(depth int, l LogLevel, entries ...interface{}) {
+	p.internalLog(calldepth+depth, l, entries...)
+}
+
 // log stdlib compatibility
 
 func (p *PackageLogger) Println(args ...interface{}) {
