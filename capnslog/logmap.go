@@ -95,7 +95,7 @@ func (l *LogLevel) Set(s string) error {
 	return nil
 }
 
-// Returns an empty string, only here to fulfill the pflag.Value interface.
+// Type returns an empty string, only here to fulfill the pflag.Value interface.
 func (l *LogLevel) Type() string {
 	return ""
 }
