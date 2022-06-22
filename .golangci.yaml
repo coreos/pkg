@@ -1,0 +1,10 @@
+linters:
+  disable:
+    # Too many errors for now
+    - errcheck
+issues:
+  exclude-rules:
+    # Deprecated dependency we're going to keep
+    - linters:
+        - staticcheck
+      text: "moved to golang.org/x/term"
