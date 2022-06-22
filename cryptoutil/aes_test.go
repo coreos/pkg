@@ -71,6 +71,9 @@ func TestAESEncryptDecrypt(t *testing.T) {
 	}
 
 	decrypted, err := AESDecrypt(ciphertext, key)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 	if !reflect.DeepEqual(message, decrypted) {
 		t.Fatalf("Decrypted data does not match original payload: want=%v got=%v", message, decrypted)
 	}

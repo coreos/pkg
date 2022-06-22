@@ -87,7 +87,7 @@ func TestCopyOne(t *testing.T) {
 		t.Errorf("error from PrintAndWait: %v", err)
 	}
 
-	if bytes.Compare(fw.Bytes(), bytes.Repeat(sampleData, 10)) != 0 {
+	if !bytes.Equal(fw.Bytes(), bytes.Repeat(sampleData, 10)) {
 		t.Errorf("copied bytes don't match!")
 	}
 }
@@ -99,7 +99,7 @@ func TestErrAlreadyStarted(t *testing.T) {
 
 	out := &bytes.Buffer{}
 
-	err := cpp.AddCopy(fr, "download", 10^10, fw)
+	err := cpp.AddCopy(fr, "download", 10e10, fw)
 	if err != nil {
 		t.Errorf("%v\n", err)
 	}
@@ -121,7 +121,7 @@ func TestErrAlreadyStarted(t *testing.T) {
 		}
 	}
 
-	err = cpp.AddCopy(fr, "download", 10^10, fw)
+	err = cpp.AddCopy(fr, "download", 10e10, fw)
 	if err != ErrAlreadyStarted {
 		t.Errorf("Was expecting ErrAlreadyStarted, got something else: %v\n", err)
 	}
