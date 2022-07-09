@@ -25,3 +25,8 @@ _testmain.go
 
 bin/
 coverage/
+
+# We use these for testing but don't want to publish them, since we'd need
+# to bump the major version
+/go.mod
+/go.sum

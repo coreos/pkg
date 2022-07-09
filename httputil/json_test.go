@@ -40,9 +40,9 @@ func TestWriteJSONResponse(t *testing.T) {
 			t.Errorf("case %d: (err != nil) == %v, want %v. err: %v", i, err != nil, test.expectErr, err)
 		}
 
-		if string(w.Body.Bytes()) != test.expectedJSON {
+		if w.Body.String() != test.expectedJSON {
 			t.Errorf("case %d: w.Body.Bytes()) == %q, want %q", i,
-				string(w.Body.Bytes()), test.expectedJSON)
+				w.Body.String(), test.expectedJSON)
 		}
 
 		if !test.expectErr {
