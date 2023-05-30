@@ -1,13 +1,19 @@
-name: Go
+# Maintained in https://github.com/coreos/repo-templates
+# Do not edit downstream.
 
+name: Go
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
 permissions:
   contents: read
+
+# don't waste job slots on superseded code
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -25,10 +31,10 @@ jobs:
       uses: actions/checkout@v3
     - name: Build
       run: ./build.sh
-    - name: Run tests
+    - name: Test
       run: ./test.sh
     - name: Run linter
       uses: golangci/golangci-lint-action@v3
       with:
-        version: v1.51.1
+        version: v1.52.2
         args: -E=gofmt --timeout=30m0s
